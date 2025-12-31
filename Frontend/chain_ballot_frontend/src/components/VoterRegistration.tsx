@@ -2,7 +2,7 @@ import { useState } from "react";
 
 const VoterRegister = () => {
   const [formData, setFormData] = useState({
-    fullName: "",
+    name: "",
     crn: "",
     email: "",
     password: "",
@@ -66,15 +66,15 @@ const VoterRegister = () => {
             <div className="mb-4 p-8 shadow-md shadow-gray-200 rounded-lg w-full max-w-5xl transition duration-300 hover:shadow-lg hover:shadow-blue-400/50">
               <label
                 className="block text-left text-lg  text-black mb-2"
-                htmlFor="rollNo"
+                htmlFor="crn"
               >
                 Enter Roll No
               </label>
               <input
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500"
                 type="text"
-                id="rollNo"
-                name="rollNo"
+                id="crn"
+                name="crn"
                 onChange={handleChange}
                 placeholder="Campus Roll No. ex(THA080BEI01)"
                 required
