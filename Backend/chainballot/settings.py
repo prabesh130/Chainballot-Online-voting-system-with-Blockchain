@@ -49,7 +49,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'Chainballot.urls'
+ROOT_URLCONF = 'chainballot.urls'
 
 TEMPLATES = [
     {
@@ -66,7 +66,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'Chainballot.wsgi.application'
+WSGI_APPLICATION = 'chainballot.wsgi.application'
 
 
 # Database
