@@ -5,6 +5,7 @@ const VoterRegister = () => {
     name: "",
     crn: "",
     email: "",
+    number: "",
     password: "",
     confirmPassword: "",
   });
@@ -76,7 +77,7 @@ const VoterRegister = () => {
                 id="crn"
                 name="crn"
                 onChange={handleChange}
-                placeholder="Campus Roll No. ex(THA080BEI01)"
+                placeholder="Campus Roll No. ex(THA070BCT047)"
                 required
               />
             </div>
@@ -95,6 +96,24 @@ const VoterRegister = () => {
                 name="email"
                 onChange={handleChange}
                 placeholder="Enter Your Email Address"
+                required
+              />
+            </div>
+
+            <div className="mb-4 p-8 shadow-md shadow-gray-200 rounded-lg w-full max-w-5xl transition duration-300 hover:shadow-lg hover:shadow-blue-400/50">
+              <label
+                className="block text-left text-lg  text-black mb-2"
+                htmlFor="number"
+              >
+                Phone Number
+              </label>
+              <input
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500"
+                type="number"
+                id="number"
+                name="number"
+                onChange={handleChange}
+                placeholder="Enter Your Phone Number"
                 required
               />
             </div>
