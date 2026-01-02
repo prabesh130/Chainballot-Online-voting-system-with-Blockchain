@@ -6,7 +6,7 @@ import NavBar from "./components/Navbar";
 import Home from "./components/Home";
 import Guide from "./components/Guide";
 import Contact from "./components/Contact";
-import LeftDecor from "./assets/image/vecto.png";
+
 import RightDecor from "./assets/image/moon.png";
 import Footer from "./components/Footer";
 
@@ -18,32 +18,18 @@ function ScrollToTop() {
   return null;
 }
 
+// 
+
 function App() {
   return (
     <BrowserRouter basename="/">
       {/* Left-side decorative vector */}
-      <img
-        src={LeftDecor}
-        alt="Decorative Vector"
-        className="
-          
-             hidden md:block
-    fixed -left-6 bottom-36
-     pointer-events-none
-    z-0
-    blur-sm
-    rotate-[15deg]
-          transition-all duration-700 ease-in-out
-        "
-      />
-
-      <img
+         <img
         src={RightDecor}
         alt="Decorative Vector"
         className="
-          
              hidden md:block
-    fixed -right-40 -top-12
+    absolute -right-40 -top-12
      pointer-events-none
     z-0
     rotate-[240deg]
@@ -51,7 +37,6 @@ function App() {
           transition-all duration-700 ease-in-out
         "
       />
-
       {/* Main content */}
       <div className="relative z-0 ">
         <NavBar />
