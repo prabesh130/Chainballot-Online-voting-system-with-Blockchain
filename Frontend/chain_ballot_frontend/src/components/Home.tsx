@@ -1,8 +1,10 @@
 import { Card, CardImage, CardContent } from "./Card";
 import { useEffect, useState } from "react";
 import LeftDecor from "../assets/image/vecto.png";
-// import RightDecor from "../assets/image/moon.png";
 
+import RightDecor from "../assets/image/moon.png";
+
+// -------------------- Countdown Hook --------------------
 interface NewsItem {
   title: string;
   description: string;

@@ -18,18 +18,19 @@ function ScrollToTop() {
   return null;
 }
 
-// 
+//
 
 function App() {
   return (
     <BrowserRouter basename="/">
       {/* Left-side decorative vector */}
-         <img
+      <img
         src={RightDecor}
         alt="Decorative Vector"
         className="
              hidden md:block
-    absolute -right-40 -top-12
+
+    absolute -right-40 -top-11
      pointer-events-none
     z-0
     rotate-[240deg]
@@ -48,7 +49,7 @@ function App() {
           <Route path="/contact-us" element={<Contact />} />
         </Routes>
       </div>
-        <Footer />
+      <Footer />
     </BrowserRouter>
   );
 }
