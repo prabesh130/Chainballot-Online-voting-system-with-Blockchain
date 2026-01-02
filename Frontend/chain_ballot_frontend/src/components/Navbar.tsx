@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import Logo from "../assets/image/chain_ballot_logo_no_bg.png";
 
 const NavBar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+const [scrolled, setScrolled] = useState(false);
+
 
   const handleMenuToggle = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -11,11 +13,41 @@ const NavBar: React.FC = () => {
 
   const closeMenu = () => {
     setIsMenuOpen(false);
+
   };
+  useEffect(() => {
+  const onScroll = () => {
+    setScrolled(window.scrollY > 40);
+  };
+  window.addEventListener("scroll", onScroll);
+  return () => window.removeEventListener("scroll", onScroll);
+}, []);
+
 
   return (
-    <nav className="sticky rounded-3xl top-0 left-0 z-50 w-full h-20 bg-gray-50 backdrop-filter backdrop-blur-lg shadow-lg flex transition-all justify-between duration-300 hover:bg-slate-900/98">
-      <div className="flex w-full items-center justify-between px-4 max-w-full mx-auto">
+    <>
+    <div className="h-8"></div>
+
+    <nav
+      className={`
+    sticky top-1 z-50 mx-16 h-20 rounded-3xl
+    border-2 border-red-800
+    transition-all duration-300
+    ${
+      scrolled
+        ? "bg-gray-50 shadow-xl backdrop-blur-none"
+        : "bg-gray-50/70 backdrop-blur-lg"
+    }
+  `}
+    >
+      <div
+        className="
+  max-w-7xl mx-auto
+  h-full
+  flex items-center justify-between
+  px-5 lg:px-10
+"
+      >
         <div className="flex items-center flex-shrink-0">
           <NavLink
             to="/"
@@ -91,6 +123,7 @@ const NavBar: React.FC = () => {
         </div>
       )}
     </nav>
+    </>
   );
 };
 
@@ -120,6 +153,7 @@ const Navlink: React.FC<NavlinkProps> = ({ to, children, onClick }) => {
       {children}
     </NavLink>
   );
+  
 };
 
 export default NavBar;

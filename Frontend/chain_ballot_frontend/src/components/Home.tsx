@@ -55,7 +55,8 @@ async function fetchElectionNews() {
     {
       id: 1,
       title: "Election Commission Announces Voting Date",
-      image:"https://images.unsplash.com/photo-1551836022-d5d88e9218df?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8ZWxlY3Rpb258ZW58MHx8MHx8fDA%3D&w=1000&q=80",
+      image:
+        "https://images.unsplash.com/photo-1551836022-d5d88e9218df?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8ZWxlY3Rpb258ZW58MHx8MHx8fDA%3D&w=1000&q=80",
       summary:
         "National elections scheduled with enhanced blockchain security.",
       url: "/register",
@@ -63,16 +64,18 @@ async function fetchElectionNews() {
     {
       id: 2,
       title: "ChainBallot Audit Completed",
-      image:"https://images.unsplash.com/photo-1507679799987-c73779587ccf?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YXVkaXR8ZW58MHx8MHx8fDA%3D&w=1000&q=80",
+      image:
+        "https://images.unsplash.com/photo-1507679799987-c73779587ccf?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YXVkaXR8ZW58MHx8MHx8fDA%3D&w=1000&q=80",
       summary: "Independent audit confirms immutability of vote records.",
-      url:"/guide",
+      url: "/guide",
     },
     {
       id: 3,
       title: "Voter Registration Hits Record High",
-      image:"https://images.unsplash.com/photo-1504384308090-c894fdcc538d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8dm90ZXJ8ZW58MHx8MHx8fDA%3D&w=1000&q=80",
+      image:
+        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8dm90ZXJ8ZW58MHx8MHx8fDA%3D&w=1000&q=80",
       summary: "Digital onboarding increases participation across regions.",
-      url:"/contact-us",
+      url: "/contact-us",
     },
   ];
 }
@@ -89,16 +92,15 @@ export default function Home() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div
+      {/* <div
         className="absolute inset-0 bg-center bg-contain blur-lg scale-110 opacity-60"
         style={{ backgroundImage: `url(${logo})` }}
-      />
+      /> */}
 
-      <div className="absolute inset-0 bg-white/70" />
-
-      <div className="relative z-10 max-w-6xl mx-auto px-6 py-16 space-y-16">
+      <div className="absolute inset-0 " />
+      <div className="relative z-10 max-w-6xl mt-20  mx-auto px-6 py-16 space-y-16">
         <section className="text-center space-y-6">
-          <h1 className="md:text-6xl mb-20 text-4xl font-bold tracking-tight">
+          <h1 className="md:text-6xl mb-28 text-4xl font-bold tracking-tight">
             Time For Upcoming National Election
           </h1>
 
@@ -122,14 +124,21 @@ export default function Home() {
           </div>
         </section>
 
-        {/* News Section */}
-        <section className="space-y-6 md:py-16 py-10">
-          <h2 className="text-4xl font-semibold">Latest Election Updates</h2>
-
-          <div className="grid md:grid-cols-1 gap-6 cursor-pointer">
+        
+      </div>
+      {/* News Section */}
+        <section className="space-y-6  pt-10 mt-10 bg-white ">
+          <h2 className="text-4xl text-center font-semibold">
+            Latest Election Updates
+          </h2>
+          <div className="w-1/2 mx-auto border-t-2  border-red-500 my-4 mb-8"></div>
+          <div className="grid md:grid-cols-1 mx-auto  gap-6 max-w-sm md:max-w-xl cursor-pointer">
             {news.map((item) => (
-              <Card key={item.id}  className="hover:shadow-xl transition mt-10"
-              onClick={() => window.open(item.url, "_blank")}>
+              <Card
+                key={item.id}
+                className="hover:shadow-xl transition mt-10"
+                onClick={() => window.open(item.url, "_blank")}
+              >
                 {/* Optional image */}
                 {item.image && <CardImage src={item.image} alt={item.title} />}
 
@@ -141,7 +150,6 @@ export default function Home() {
             ))}
           </div>
         </section>
-      </div>
     </div>
   );
 }

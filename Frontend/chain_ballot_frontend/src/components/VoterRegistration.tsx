@@ -38,7 +38,7 @@ const VoterRegister = () => {
   return (
     <div className="min-h-screen">
       <div className="flex items-center justify-center px-4">
-        <div className="my-8 p-8 rounded-lg w-full max-w-5xl border  shadow-2xl shadow-gray-600">
+        <div className="my-8 p-8 rounded-lg w-full max-w-5xl border bg-white  shadow-2xl shadow-gray-600">
           <div className="flex flex-col items-center justify-center  text-black">
             <p className="text-center  text-black font-bold text-5xl">
               Registration Form
