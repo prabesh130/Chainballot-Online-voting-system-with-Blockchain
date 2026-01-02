@@ -5,7 +5,6 @@ const VoterRegister = () => {
     name: "",
     crn: "",
     email: "",
-    number: "",
     password: "",
     confirmPassword: "",
   });
@@ -29,10 +28,42 @@ const VoterRegister = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    console.log("Voter data:", formData);
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    console.log("Submitting:", formData);
+    const payload = {
+      username: formData.crn, // CRN becomes username
+      email: formData.email,
+      password: formData.password,
+      password2: formData.confirmPassword,
+      first_name: formData.name.split(" ")[0] || "",
+      last_name: formData.name.split(" ").slice(1).join(" ") || "",
+    };
+    console.log("Payload:", payload);
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/register/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(JSON.stringify(data));
+
+      localStorage.setItem("access", data.tokens.access);
+      localStorage.setItem("refresh", data.tokens.refresh);
+
+      console.log("Registered:", data.user);
+    } catch (err: any) {
+      setError("Registration failed");
+    }
   };
 
   return (
