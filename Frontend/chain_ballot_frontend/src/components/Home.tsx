@@ -2,8 +2,6 @@ import { Card, CardImage, CardContent } from "./Card";
 import { useEffect, useState } from "react";
 import LeftDecor from "../assets/image/vecto.png";
 
-import RightDecor from "../assets/image/moon.png";
-
 // -------------------- Countdown Hook --------------------
 interface NewsItem {
   title: string;
@@ -129,9 +127,9 @@ export default function Home() {
     <div className="min-h-screen relative overflow-visible">
       <div className="relative  max-w-6xl mx-auto px-6 py-16 space-y-16">
         <img
-        src={LeftDecor}
-        alt="Decorative Vector"
-        className="
+          src={LeftDecor}
+          alt="Decorative Vector"
+          className="
           hidden md:block
           absolute -left-52 -bottom-24
           pointer-events-none
@@ -140,9 +138,8 @@ export default function Home() {
           rotate-[25deg]
           transition-all duration-700 ease-in-out
         "
-      />
+        />
         <section className="text-center space-y-6">
-          
           <h1 className="md:text-6xl mb-28 text-4xl z-20 font-bold tracking-tight">
             Time For Upcoming National Election
           </h1>
