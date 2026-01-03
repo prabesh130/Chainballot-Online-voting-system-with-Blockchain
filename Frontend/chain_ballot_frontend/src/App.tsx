@@ -6,7 +6,7 @@ import NavBar from "./components/Navbar";
 import Home from "./components/Home";
 import Guide from "./components/Guide";
 import Contact from "./components/Contact";
-
+import "./index.css"
 import RightDecor from "./assets/image/moon.png";
 import Footer from "./components/Footer";
 

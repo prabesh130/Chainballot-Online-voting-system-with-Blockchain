@@ -144,23 +144,48 @@ export default function Home() {
             Time For Upcoming National Election
           </h1>
 
-          <div className="flex justify-center gap-6 mt-8">
-            {[
-              { label: "Months", value: months },
-              { label: "Days", value: days },
-              { label: "Hours", value: hours },
-              { label: "Minutes", value: minutes },
-              { label: "Seconds", value: seconds },
-            ].map((item) => (
-              <Card key={item.label} className="w-60 text-center shadow-lg">
-                <CardContent className="py-10">
-                  <div className="text-6xl font-medium tabular-nums">
-                    {item.value.toString().padStart(2, "0")}
-                  </div>
-                  <div className="text-lg text-gray-500 mt-1">{item.label}</div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="mt-8">
+            {/* Mobile (Months, Days, Hours) */}
+            <div className="grid grid-cols-3 gap-4 sm:hidden max-w-md mx-auto">
+              {[
+                { label: "Months", value: months },
+                { label: "Days", value: days },
+                { label: "Hours", value: hours },
+              ].map((item) => (
+                <Card key={item.label} className="text-center shadow-md">
+                  <CardContent className="py-6">
+                    <div className="text-5xl font-semibold tabular-nums">
+                      {item.value.toString().padStart(2, "0")}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {item.label}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Desktop (Months, Days, Hours, Minutes, Seconds) */}
+            <div className="hidden sm:flex justify-center gap-6">
+              {[
+                { label: "Months", value: months },
+                { label: "Days", value: days },
+                { label: "Hours", value: hours },
+                { label: "Minutes", value: minutes },
+                { label: "Seconds", value: seconds },
+              ].map((item) => (
+                <Card key={item.label} className="w-60 text-center shadow-lg">
+                  <CardContent className="py-10">
+                    <div className="text-6xl font-medium tabular-nums">
+                      {item.value.toString().padStart(2, "0")}
+                    </div>
+                    <div className="text-lg text-gray-500 mt-1">
+                      {item.label}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </section>
       </div>
