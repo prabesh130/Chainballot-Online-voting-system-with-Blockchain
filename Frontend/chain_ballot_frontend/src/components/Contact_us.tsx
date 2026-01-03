@@ -26,7 +26,7 @@ export default function ContactUs() {
         headers: {
           "Content-Type": "application/json",
         }, 
-        body: new URLSearchParams({
+        body: JSON.stringify({
           name: form.name,
           email: form.email,
           message: form.message,
