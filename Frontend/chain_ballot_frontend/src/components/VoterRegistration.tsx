@@ -5,6 +5,7 @@ const VoterRegister = () => {
     name: "",
     crn: "",
     email: "",
+    number:"",
     password: "",
     confirmPassword: "",
   });
@@ -38,12 +39,13 @@ const VoterRegister = () => {
     }
     console.log("Submitting:", formData);
     const payload = {
-      username: formData.crn, // CRN becomes username
+      username: formData.crn, // roll no
       email: formData.email,
       password: formData.password,
       password2: formData.confirmPassword,
       first_name: formData.name.split(" ")[0] || "",
       last_name: formData.name.split(" ").slice(1).join(" ") || "",
+      number: formData.number,
     };
     console.log("Payload:", payload);
     try {
