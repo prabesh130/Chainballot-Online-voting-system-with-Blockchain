@@ -8,6 +8,7 @@ export default function ContactUs() {
     email: "",
     message: "",
   });
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -15,10 +16,35 @@ export default function ContactUs() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // hook backend / email service later
+    setLoading(true);
     console.log(form);
+    try{
+      const response = await fetch("http://127.0.0.1:8000/contact/contact_us/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        }, 
+        body: new URLSearchParams({
+          name: form.name,
+          email: form.email,
+          message: form.message,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert("Message sent successfully!");
+        setForm({ name: "", email: "", message: "" });
+      } else {
+        alert("Error: "+(data.error || "Failed to send message."));
+        }
+    }catch(error){
+      alert("An error occurred while sending the message.");
+      console.error("Error:", error);
+    } finally{
+      setLoading(false);
+    }
   };
 
   return (
@@ -130,6 +156,7 @@ export default function ContactUs() {
 
                 <button
                   type="submit"
+                  disabled={loading}
                   className="
                     w-full
                     rounded-xl
