@@ -54,9 +54,9 @@ const NavBar: React.FC = () => {
               <img
                 src={Logo}
                 alt="Logo"
-                className="h-14 w-14 transition-transform duration-300 group-hover:rotate-12"
+                className="md:h-14 md:w-14 w-10 transition-transform duration-300 group-hover:rotate-12"
               />
-              <span className="text-blue-400 hover:text-blue-900 text-3xl font-semibold tracking-wider group-hover:text-theme transition-colors duration-300">
+              <span className="text-blue-400 hover:text-blue-900 md:text-3xl text-xl font-semibold tracking-wider group-hover:text-theme transition-colors duration-300">
                 ChainBallot
               </span>
             </NavLink>
@@ -107,16 +107,35 @@ const NavBar: React.FC = () => {
         </div>
 
         {isMenuOpen && (
-          <div className="lg:hidden fixed top-20 text-center text-blue-400 backdrop-blur bg-blue-200 w-full  p-4 flex py-48 justify-evenly flex-col">
-            <Navlink to="/" onClick={closeMenu}>
-              Home
-            </Navlink>
-            <Navlink to="/contact-us" onClick={closeMenu}>
-              Contact Us
-            </Navlink>
-            <Navlink to="/register" onClick={closeMenu}>
-              Register
-            </Navlink>
+          <div
+            className="
+      lg:hidden
+      absolute top-20 left-0
+      w-full
+      bg-white/95 backdrop-blur-md
+      shadow-xl
+       border-gray-200
+      rounded-3xl
+      animate-slideDown
+    "
+          >
+            <div className="flex flex-col items-center py-6 space-y-4">
+              <Navlink to="/" onClick={closeMenu}>
+                Home
+              </Navlink>
+
+              <Navlink to="/Guide" onClick={closeMenu}>
+                Guide
+              </Navlink>
+
+              <Navlink to="/contact-us" onClick={closeMenu}>
+                Contact Us
+              </Navlink>
+
+              <Navlink to="/register" onClick={closeMenu}>
+                Register
+              </Navlink>
+            </div>
           </div>
         )}
       </nav>
