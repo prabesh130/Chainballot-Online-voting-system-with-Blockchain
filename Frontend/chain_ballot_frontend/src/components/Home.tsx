@@ -55,53 +55,53 @@ function calculateTimeLeft(targetDate: Date) {
 }
 
 // -------------------- Fetch News --------------------
-async function fetchElectionNews(): Promise<NewsItem[]> {
-  const url =
-    "https://newsdata.io/api/1/latest?country=np&apikey=pub_441242573cfc4e70afc9e75ee81374fc";
+// async function fetchElectionNews(): Promise<NewsItem[]> {
+//   const url =
+//     "https://newsdata.io/api/1/latest?country=np&apikey=pub_441242573cfc4e70afc9e75ee81374fc";
 
-  try {
-    const response = await fetch(url);
+//   try {
+//     const response = await fetch(url);
 
-    if (!response.ok) {
-      throw new Error("Network response was not ok");
-    }
+//     if (!response.ok) {
+//       throw new Error("Network response was not ok");
+//     }
 
-    const data: { results: NewsItem[] } = await response.json();
+//     const data: { results: NewsItem[] } = await response.json();
 
-    // Filter only politics news
-    const politicsNews = data.results.filter((item): item is NewsItem => {
-      if (!item.category) return false;
+//     // Filter only politics news
+//     const politicsNews = data.results.filter((item): item is NewsItem => {
+//       if (!item.category) return false;
 
-      if (Array.isArray(item.category)) {
-        return item.category.some(
-          (cat) =>
-            (typeof cat === "string" && cat.toLowerCase() === "politics") ||
-            cat.toLowerCase() === "political" ||
-            cat.toLowerCase() === "election" ||
-            cat.toLowerCase() === "lifestyle" ||
-            cat.toLowerCase() === "top"
-        );
-      }
+//       if (Array.isArray(item.category)) {
+//         return item.category.some(
+//           (cat) =>
+//             (typeof cat === "string" && cat.toLowerCase() === "politics") ||
+//             cat.toLowerCase() === "political" ||
+//             cat.toLowerCase() === "election" ||
+//             // cat.toLowerCase() === "lifestyle" ||
+//             cat.toLowerCase() === "top"
+//         );
+//       }
 
-      if (typeof item.category === "string") {
-        return (
-          item.category.toLowerCase() === "politics" ||
-          item.category.toLowerCase() === "political" ||
-          item.category.toLowerCase() === "election" ||
-          item.category.toLowerCase() === "lifestyle" ||
-          item.category.toLowerCase() === "top"
-        );
-      }
+//       if (typeof item.category === "string") {
+//         return (
+//           item.category.toLowerCase() === "politics" ||
+//           item.category.toLowerCase() === "political" ||
+//           item.category.toLowerCase() === "election" ||
+//           item.category.toLowerCase() === "lifestyle" ||
+//           item.category.toLowerCase() === "top"
+//         );
+//       }
 
-      return false; // fallback for unexpected types
-    });
+//       return false; // fallback for unexpected types
+//     });
 
-    return politicsNews;
-  } catch (error) {
-    console.error("Error fetching news data:", error);
-    return []; // always return an array
-  }
-}
+//     return politicsNews;
+//   } catch (error) {
+//     console.error("Error fetching news data:", error);
+//     return []; // always return an array
+//   }
+// }
 
 // -------------------- Home Page --------------------
 export default function Home() {
@@ -109,19 +109,19 @@ export default function Home() {
   const { months, days, hours, minutes, seconds } = useCountdown(electionDate);
   const [news, setNews] = useState<NewsItem[]>([]);
 
-  useEffect(() => {
-    const fetchAndSetNews = async () => {
-      const newsData = await fetchElectionNews();
-      setNews(newsData);
-    };
+  // useEffect(() => {
+  //   const fetchAndSetNews = async () => {
+  //     const newsData = await fetchElectionNews();
+  //     setNews(newsData);
+  //   };
 
-    // fetch initially
-    fetchAndSetNews();
+  //   // fetch initially
+  //   fetchAndSetNews();
 
-    const interval = setInterval(fetchAndSetNews, 120000);
+  //   const interval = setInterval(fetchAndSetNews, 120000);
 
-    return () => clearInterval(interval);
-  }, []);
+  //   return () => clearInterval(interval);
+  // }, []);
 
   return (
     <div className="min-h-screen relative overflow-visible">

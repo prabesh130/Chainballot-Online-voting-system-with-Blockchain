@@ -5,7 +5,7 @@ import VoterRegistration from "./components/VoterRegistration";
 import NavBar from "./components/Navbar";
 import Home from "./components/Home";
 import Guide from "./components/Guide";
-import Contact from "./components/Contact";
+import ContactUs from "./components/Contact_us";
 import "./index.css"
 import RightDecor from "./assets/image/moon.png";
 import Footer from "./components/Footer";
@@ -46,7 +46,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/register" element={<VoterRegistration />} />
           <Route path="/guide" element={<Guide />} />
-          <Route path="/contact-us" element={<Contact />} />
+          <Route path="/contact-us" element={<ContactUs />} />
         </Routes>
       </div>
       <Footer />
