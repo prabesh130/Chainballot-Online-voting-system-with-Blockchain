@@ -2,8 +2,6 @@ import { Card, CardImage, CardContent } from "./Card";
 import { useEffect, useState } from "react";
 import LeftDecor from "../assets/image/vecto.png";
 
-import RightDecor from "../assets/image/moon.png";
-
 // -------------------- Countdown Hook --------------------
 interface NewsItem {
   title: string;
@@ -57,53 +55,53 @@ function calculateTimeLeft(targetDate: Date) {
 }
 
 // -------------------- Fetch News --------------------
-async function fetchElectionNews(): Promise<NewsItem[]> {
-  const url =
-    "https://newsdata.io/api/1/latest?country=np&apikey=pub_441242573cfc4e70afc9e75ee81374fc";
+// async function fetchElectionNews(): Promise<NewsItem[]> {
+//   const url =
+//     "https://newsdata.io/api/1/latest?country=np&apikey=pub_441242573cfc4e70afc9e75ee81374fc";
 
-  try {
-    const response = await fetch(url);
+//   try {
+//     const response = await fetch(url);
 
-    if (!response.ok) {
-      throw new Error("Network response was not ok");
-    }
+//     if (!response.ok) {
+//       throw new Error("Network response was not ok");
+//     }
 
-    const data: { results: NewsItem[] } = await response.json();
+//     const data: { results: NewsItem[] } = await response.json();
 
-    // Filter only politics news
-    const politicsNews = data.results.filter((item): item is NewsItem => {
-      if (!item.category) return false;
+//     // Filter only politics news
+//     const politicsNews = data.results.filter((item): item is NewsItem => {
+//       if (!item.category) return false;
 
-      if (Array.isArray(item.category)) {
-        return item.category.some(
-          (cat) =>
-            (typeof cat === "string" && cat.toLowerCase() === "politics") ||
-            cat.toLowerCase() === "political" ||
-            cat.toLowerCase() === "election" ||
-            cat.toLowerCase() === "lifestyle" ||
-            cat.toLowerCase() === "top"
-        );
-      }
+//       if (Array.isArray(item.category)) {
+//         return item.category.some(
+//           (cat) =>
+//             (typeof cat === "string" && cat.toLowerCase() === "politics") ||
+//             cat.toLowerCase() === "political" ||
+//             cat.toLowerCase() === "election" ||
+//             // cat.toLowerCase() === "lifestyle" ||
+//             cat.toLowerCase() === "top"
+//         );
+//       }
 
-      if (typeof item.category === "string") {
-        return (
-          item.category.toLowerCase() === "politics" ||
-          item.category.toLowerCase() === "political" ||
-          item.category.toLowerCase() === "election" ||
-          item.category.toLowerCase() === "lifestyle" ||
-          item.category.toLowerCase() === "top"
-        );
-      }
+//       if (typeof item.category === "string") {
+//         return (
+//           item.category.toLowerCase() === "politics" ||
+//           item.category.toLowerCase() === "political" ||
+//           item.category.toLowerCase() === "election" ||
+//           item.category.toLowerCase() === "lifestyle" ||
+//           item.category.toLowerCase() === "top"
+//         );
+//       }
 
-      return false; // fallback for unexpected types
-    });
+//       return false; // fallback for unexpected types
+//     });
 
-    return politicsNews;
-  } catch (error) {
-    console.error("Error fetching news data:", error);
-    return []; // always return an array
-  }
-}
+//     return politicsNews;
+//   } catch (error) {
+//     console.error("Error fetching news data:", error);
+//     return []; // always return an array
+//   }
+// }
 
 // -------------------- Home Page --------------------
 export default function Home() {
@@ -111,59 +109,83 @@ export default function Home() {
   const { months, days, hours, minutes, seconds } = useCountdown(electionDate);
   const [news, setNews] = useState<NewsItem[]>([]);
 
-  useEffect(() => {
-    const fetchAndSetNews = async () => {
-      const newsData = await fetchElectionNews();
-      setNews(newsData);
-    };
+  // useEffect(() => {
+  //   const fetchAndSetNews = async () => {
+  //     const newsData = await fetchElectionNews();
+  //     setNews(newsData);
+  //   };
 
-    // fetch initially
-    fetchAndSetNews();
+  //   // fetch initially
+  //   fetchAndSetNews();
 
-    const interval = setInterval(fetchAndSetNews, 120000);
+  //   const interval = setInterval(fetchAndSetNews, 120000);
 
-    return () => clearInterval(interval);
-  }, []);
+  //   return () => clearInterval(interval);
+  // }, []);
 
   return (
     <div className="min-h-screen relative overflow-visible">
-      <img
-        src={LeftDecor}
-        alt="Decorative Vector"
-        className="
+      <div className="relative  max-w-6xl mx-auto px-6 py-16 space-y-16">
+        <img
+          src={LeftDecor}
+          alt="Decorative Vector"
+          className="
           hidden md:block
-          absolute -left-6 
+          absolute -left-52 -bottom-24
           pointer-events-none
-          z-0
+          -z-10
           blur-sm
-          rotate-[15deg]
+          rotate-[25deg]
           transition-all duration-700 ease-in-out
         "
-      />
-
-      <div className="relative z-10 max-w-6xl mt-20 mx-auto px-6 py-16 space-y-16">
+        />
         <section className="text-center space-y-6">
-          <h1 className="md:text-6xl mb-28 text-4xl font-bold tracking-tight">
+          <h1 className="md:text-6xl mb-28 text-4xl z-20 font-bold tracking-tight">
             Time For Upcoming National Election
           </h1>
 
-          <div className="flex justify-center gap-6 mt-8">
-            {[
-              { label: "Months", value: months },
-              { label: "Days", value: days },
-              { label: "Hours", value: hours },
-              { label: "Minutes", value: minutes },
-              { label: "Seconds", value: seconds },
-            ].map((item) => (
-              <Card key={item.label} className="w-60 text-center shadow-lg">
-                <CardContent className="py-10">
-                  <div className="text-6xl font-medium tabular-nums">
-                    {item.value.toString().padStart(2, "0")}
-                  </div>
-                  <div className="text-lg text-gray-500 mt-1">{item.label}</div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="mt-8">
+            {/* Mobile (Months, Days, Hours) */}
+            <div className="grid grid-cols-3 gap-4 sm:hidden max-w-md mx-auto">
+              {[
+                { label: "Months", value: months },
+                { label: "Days", value: days },
+                { label: "Hours", value: hours },
+              ].map((item) => (
+                <Card key={item.label} className="text-center shadow-md">
+                  <CardContent className="py-6">
+                    <div className="text-5xl font-semibold tabular-nums">
+                      {item.value.toString().padStart(2, "0")}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {item.label}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Desktop (Months, Days, Hours, Minutes, Seconds) */}
+            <div className="hidden sm:flex justify-center gap-6">
+              {[
+                { label: "Months", value: months },
+                { label: "Days", value: days },
+                { label: "Hours", value: hours },
+                { label: "Minutes", value: minutes },
+                { label: "Seconds", value: seconds },
+              ].map((item) => (
+                <Card key={item.label} className="w-60 text-center shadow-lg">
+                  <CardContent className="py-10">
+                    <div className="text-6xl font-medium tabular-nums">
+                      {item.value.toString().padStart(2, "0")}
+                    </div>
+                    <div className="text-lg text-gray-500 mt-1">
+                      {item.label}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </section>
       </div>
