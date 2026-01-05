@@ -17,11 +17,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
-from authentication.views import RegisterView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/register/', RegisterView.as_view(), name='register'),
     path ('contact/', include('contact.urls')),
     path('student/', include('student.urls')),
     path('voter/', include('voter.urls')),
