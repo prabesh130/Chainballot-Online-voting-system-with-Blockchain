@@ -12,7 +12,10 @@ class RegisterView(generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        # serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            print("REGISTER ERRORS:", serializer.errors)
+            return Response(serializer.errors, status=400)
         user = serializer.save()
         
         refresh = RefreshToken.for_user(user)
@@ -33,3 +36,4 @@ class RegisterView(generics.CreateAPIView):
                 "access": str(refresh.access_token),
             }
         }, status=status.HTTP_201_CREATED)
+    
