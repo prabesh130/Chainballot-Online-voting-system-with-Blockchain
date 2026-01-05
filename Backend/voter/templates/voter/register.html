@@ -1,0 +1,43 @@
+<!-- registered/templates/registered/register.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register Student</title>
+</head>
+<body>
+    <h1>Register Student</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p>
+                {{ message }}
+            </p>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <label for="email">Email:</label>
+        <input type="email" name="email" id="email" required>
+        <button type="submit">Register</button>
+    </form>
+</body>
+</html> -->
+
+<h2>Voter Registration</h2>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Register</button>
+</form>
+
+{% for field in form %}
+    {% for error in field.errors %}
+        <p style="color:red;">{{ error }}</p>
+    {% endfor %}
+{% endfor %}
+
+{% for error in form.non_field_errors %}
+    <p style="color:red;">{{ error }}</p>
+{% endfor %}
