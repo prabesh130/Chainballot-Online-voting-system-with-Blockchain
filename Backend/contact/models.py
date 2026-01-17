@@ -8,5 +8,5 @@ class ContactUsMessage(models.Model):
 
     class Meta:
         db_table = "contact_us_message"
-        managed = False
+        managed = True
 

@@ -21,3 +21,4 @@ db.sqlite3
 Thumbs.db
 #logs
 *.log
+private_key.pem
