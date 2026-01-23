@@ -5883,6 +5883,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-collective"
+version = "40.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47a387e0ed8cf134d3a8f2c229ef19e7558537cf67d113d4fe2558415a8f49f1"
+dependencies = [
+ "docify",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-grandpa"
 version = "40.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9458,7 +9476,7 @@ dependencies = [
 
 [[package]]
 name = "solochain-template-runtime"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-executive",
@@ -9470,6 +9488,7 @@ dependencies = [
  "frame-try-runtime",
  "pallet-aura",
  "pallet-balances",
+ "pallet-collective",
  "pallet-grandpa",
  "pallet-sudo",
  "pallet-template",
@@ -9479,6 +9498,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde_json",
+ "smallvec",
  "sp-api",
  "sp-block-builder",
  "sp-consensus-aura",
@@ -9494,6 +9514,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder",
+ "voting-pallet",
 ]
 
 [[package]]
@@ -11438,6 +11459,17 @@ name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
+
+[[package]]
+name = "voting-pallet"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-std",
+]
 
 [[package]]
 name = "w3f-bls"
