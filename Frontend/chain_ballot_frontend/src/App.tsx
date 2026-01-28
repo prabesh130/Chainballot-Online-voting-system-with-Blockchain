@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import {
   BrowserRouter,
@@ -8,22 +8,27 @@ import {
 } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 
+import Admin from "./components/Admin";
 import VoterRegistration from "./components/VoterRegistration";
 import NavBar from "./components/Navbar";
 import Home from "./components/Home";
 import Guide from "./components/Guide";
 import ContactUs from "./components/Contact_us";
 import EmailVerified from "./components/emailVerified";
-import "./index.css";
-import RightDecor from "./assets/image/moon.png";
 import Footer from "./components/Footer";
 import Login from "./components/Login";
-import VotingPortal from "./components/VotingPortal";
 import ProtectedRoute from "./components/ProtectedRoute";
-import VoteProcessing from "./components/VoteProcessing";
 import PageWrapper from "./components/Pagewrapper";
+import Mergedvoting from "./components/Mergedvoting";
 
-/* Scroll to top on route change */
+import RightDecor from "./assets/image/moon.png";
+import "./index.css";
+
+import { ApiPromise, WsProvider } from "@polkadot/api";
+
+/* ===============================
+   Scroll to top on route change
+================================ */
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -32,8 +37,10 @@ function ScrollToTop() {
   return null;
 }
 
-/* Animated Routes */
-function AnimatedRoutes() {
+/* ===============================
+   Animated Routes
+================================ */
+function AnimatedRoutes({ api }: { api: ApiPromise }) {
   const location = useLocation();
 
   return (
@@ -54,6 +61,27 @@ function AnimatedRoutes() {
             <PageWrapper>
               <VoterRegistration />
             </PageWrapper>
+          }
+        />
+
+        <Route
+          path="/admin"
+          element={
+            <PageWrapper>
+              <Admin />
+            </PageWrapper>
+          }
+        />
+
+        {/* ✅ FINAL VOTING FLOW */}
+        <Route
+          path="/merged-voting"
+          element={
+            <ProtectedRoute>
+              <PageWrapper>
+                <Mergedvoting api={api} />
+              </PageWrapper>
+            </ProtectedRoute>
           }
         />
 
@@ -92,34 +120,34 @@ function AnimatedRoutes() {
             </PageWrapper>
           }
         />
-
-        <Route
-          path="/voting-portal"
-          element={
-            <ProtectedRoute>
-              <PageWrapper>
-                <VotingPortal />
-              </PageWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/process-vote"
-          element={
-            <ProtectedRoute>
-              <PageWrapper>
-                <VoteProcessing />
-              </PageWrapper>
-            </ProtectedRoute>
-          }
-        />
       </Routes>
     </AnimatePresence>
   );
 }
 
+/* ===============================
+   App Root
+================================ */
 function App() {
+  // ✅ Only ApiPromise, no null
+  const [api, setApi] = useState<ApiPromise | null>(null);
+
+  useEffect(() => {
+    const provider = new WsProvider("ws://127.0.0.1:9944");
+    ApiPromise.create({ provider })
+      .then((api) => {
+        console.log("✅ Connected to blockchain");
+        setApi(api);
+      })
+      .catch((err) => {
+        console.error("❌ Failed to connect to blockchain", err);
+      });
+  }, []);
+
+  if (!api) {
+    return <p className="text-center mt-20">Connecting to blockchain…</p>;
+  }
+
   return (
     <BrowserRouter basename="/">
       <div className="relative overflow-x-hidden">
@@ -143,7 +171,7 @@ function App() {
         {/* Main content */}
         <div className="relative z-10">
           <ScrollToTop />
-          <AnimatedRoutes />
+          <AnimatedRoutes api={api} />
         </div>
 
         <Footer />

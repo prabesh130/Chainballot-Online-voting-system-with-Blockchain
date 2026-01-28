@@ -48,7 +48,7 @@ export default function VoteProcessing() {
 
     // Encrypt vote (for blockchain submission)
     const encryptedVote = forge.util.encode64(
-      publicKey.encrypt(voteStr, "RSA-OAEP")
+      publicKey.encrypt(voteStr, "RSA-OAEP"),
     );
 
     // Generate blinding factor r
@@ -79,7 +79,7 @@ export default function VoteProcessing() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ blindedVote: payload.blindedVote }),
-      }
+      },
     );
 
     const data = await res.json();
@@ -284,7 +284,7 @@ export default function VoteProcessing() {
                           signature: signature || "N/A",
                         },
                         null,
-                        2
+                        2,
                       )}
                     </pre>
                   )}
