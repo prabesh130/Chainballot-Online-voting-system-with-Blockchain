@@ -51,8 +51,8 @@ async function fetchElectionNews(): Promise<NewsItem[]> {
             (typeof cat === "string" && cat.toLowerCase() === "politics") ||
             cat.toLowerCase() === "political" ||
             cat.toLowerCase() === "election" ||
-            // cat.toLowerCase() === "lifestyle" ||
-            cat.toLowerCase() === "top"
+            cat.toLowerCase() === "lifestyle" 
+            // cat.toLowerCase() === "top",
         );
       }
 
@@ -61,8 +61,8 @@ async function fetchElectionNews(): Promise<NewsItem[]> {
           item.category.toLowerCase() === "politics" ||
           item.category.toLowerCase() === "political" ||
           item.category.toLowerCase() === "election" ||
-          item.category.toLowerCase() === "lifestyle" ||
-          item.category.toLowerCase() === "top"
+          item.category.toLowerCase() === "lifestyle" 
+          // item.category.toLowerCase() === "top"
         );
       }
 
@@ -105,7 +105,7 @@ function calculateTimeLeft(targetDate: Date) {
 
 // -------------------- Home Page --------------------
 export default function Home() {
-  const electionStartDate = new Date("2026-02-15T09:00:00");
+  const electionStartDate = new Date("2026-02-08sT09:00:00");
   const electionEndDate = new Date("2026-04-15T23:00:00"); // Assuming election ends at 5 PM
   const { user, loading } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -161,7 +161,7 @@ export default function Home() {
       alert("You have already voted.");
       return;
     }
-    window.location.href = "/voting-portal";
+    window.location.href = "/merged-voting";
   };
 
   return (

@@ -185,3 +185,200 @@ def voter_profile(request):
         "is_verified": voter.is_verified,
     })
 
+@login_required
+def get_verified_voters(request):
+    """
+    Get all verified voters for blockchain account generation
+    Frontend will auto-generate blockchain accounts for these voters
+    """
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Admin access required"}, status=403)
+    
+    # Get all verified voters
+    voters = Voter.objects.filter(is_verified=True).select_related('student')
+    
+    voters_data = [{
+        'id': v.id,
+        'roll': v.student.roll,
+        'email': v.student.email,
+        'name': v.student.name,
+        'is_verified': v.is_verified,
+    } for v in voters]
+    
+    return JsonResponse({
+        'voters': voters_data,
+        'count': len(voters_data)
+    })
+
+
+@csrf_exempt
+@login_required
+def send_credentials_email(request):
+    """
+    Send blockchain credentials to a student via email
+    Called from admin interface when sending individual credentials
+    """
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Admin access required"}, status=403)
+    
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=400)
+    
+    data = json.loads(request.body)
+    
+    email = data.get('email')
+    name = data.get('name')
+    roll = data.get('roll')
+    mnemonic = data.get('mnemonic')
+    address = data.get('address')
+    funded = data.get('funded', False)
+    
+    if not all([email, name, roll, mnemonic, address]):
+        return JsonResponse({"error": "Missing required fields"}, status=400)
+    
+    # Email body
+    email_body = f"""
+Hello {name},
+
+Your blockchain voting account has been created for the ChainBallot election system.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STUDENT INFORMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Name: {name}
+Roll Number: {roll}
+Email: {email}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BLOCKCHAIN ACCOUNT DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Blockchain Address:
+{address}
+
+Account Status: {'✅ FUNDED - Ready to vote' if funded else '⏳ PENDING FUNDING'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔐 SECRET RECOVERY PHRASE (12 WORDS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{mnemonic}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ CRITICAL SECURITY INSTRUCTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. SAVE this 12-word phrase IMMEDIATELY in a secure location
+2. NEVER share these words with anyone (including admins)
+3. Anyone with this phrase can vote on your behalf
+4. You will need this phrase to cast your vote
+5. We will NEVER ask you for this phrase via email or phone
+6. If you lose this phrase, you cannot vote - there is NO recovery
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HOW TO VOTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When voting opens:
+1. Go to the voting portal
+2. Enter your 12-word recovery phrase
+3. Select your candidates
+4. Submit your vote to the blockchain
+
+Your vote will be recorded permanently and anonymously on the blockchain.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If you have any questions, please contact the election administrators.
+
+Best regards,
+ChainBallot Election Team
+    """
+    
+    try:
+        send_mail(
+            subject=f"ChainBallot Voting Credentials - {roll}",
+            message=email_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Credentials sent to {email}'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@csrf_exempt
+def admin_login(request):
+    """
+    Admin login endpoint - checks if user is staff/superuser
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        email = data.get("email")
+        password = data.get("password")
+
+        if not email or not password:
+            return JsonResponse({"error": "Email and password required"}, status=400)
+
+        # Authenticate user
+        user = authenticate(request, username=email, password=password)
+
+        if not user:
+            return JsonResponse({"error": "Invalid credentials"}, status=401)
+
+        # Check if user is staff or superuser
+        if not (user.is_staff or user.is_superuser):
+            return JsonResponse({"error": "Admin access required"}, status=403)
+
+        # Login the user
+        login(request, user)
+
+        return JsonResponse({
+            "success": True,
+            "message": "Login successful",
+            "user": {
+                "email": user.email,
+                "is_staff": user.is_staff,
+                "is_superuser": user.is_superuser
+            }
+        })
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+def check_admin_auth(request):
+    """
+    Check if current session is authenticated as admin
+    """
+    if not (request.user.is_staff or request.user.is_superuser):
+        return JsonResponse({"authenticated": False}, status=403)
+
+    return JsonResponse({
+        "authenticated": True,
+        "user": {
+            "email": request.user.email,
+            "is_staff": request.user.is_staff,
+            "is_superuser": request.user.is_superuser
+        }
+    })
+
+
+@require_http_methods(["POST"])
+def admin_logout(request):
+    """
+    Admin logout endpoint
+    """
+    logout(request)
+    return JsonResponse({"success": True, "message": "Logged out successfully"})
