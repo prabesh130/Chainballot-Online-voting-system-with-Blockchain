@@ -1,0 +1,87 @@
+# =========================
+# Rust / Cargo
+# =========================
+/target/
+**/target/
+Cargo.lock
+
+# If it's a binary (blockchain node), you MAY want to keep Cargo.lock
+# Uncomment below if needed
+#! Cargo.lock
+
+# =========================
+# Substrate specific
+# =========================
+/chain_spec.json
+/node-key
+/dev-chain-spec.json
+
+# =========================
+# Environment variables
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Node / Frontend (if any in monorepo)
+# =========================
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Build / Cache files
+# =========================
+dist/
+build/
+.cache/
+.next/
+out/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# Docker
+# =========================
+docker-compose.override.yml
+
+# =========================
+# Logs & temp
+# =========================
+*.log
+tmp/
+temp/
+
+# =========================
+# Coverage / testing
+# =========================
+coverage/
+*.lcov
+
+# =========================
+# Binary / compiled outputs
+# =========================
+*.exe
+*.dll
+*.so
+*.dylib
