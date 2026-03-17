@@ -122,7 +122,7 @@ const MnemonicGate: React.FC<MnemonicGateProps> = ({ onImported }) => {
           disabled={isLoading || !mnemonic.trim()}
           className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
         >
-          {isLoading ? '⏳ Verifying...' : 'Continue to Voting'}
+          {isLoading ? 'Verifying...' : 'Continue to Voting'}
         </button>
       </div>
     </div>
@@ -434,7 +434,7 @@ const VoteProcessing: React.FC<{ api: ApiPromise; account: any; votes: VotesByPo
       setVerified(true);
     } catch (error) {
       console.error("Verification error:", error);
-      alert("❌ Verification failed. Please try again.");
+      alert("Verification failed. Please try again.");
     } finally {
       setIsProcessing(false);
     }

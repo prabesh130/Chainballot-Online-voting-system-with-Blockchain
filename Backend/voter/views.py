@@ -156,11 +156,11 @@ def verify_voter_otp(request):
     if otp_entry.otp_hash != hash_otp(otp):
         return JsonResponse({"error": "Invalid OTP"}, status=400)
 
-    # ✅ OTP VALID
+    #  OTP VALID
     otp_entry.is_used = True
     otp_entry.save()
 
-    # 🔥 LOGIN HERE (SESSION STORED)
+    # LOGIN HERE (SESSION STORED)
     login(request, user)
 
     return JsonResponse({"success": True})
