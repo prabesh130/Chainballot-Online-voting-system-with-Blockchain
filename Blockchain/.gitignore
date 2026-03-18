@@ -3,11 +3,8 @@
 # =========================
 /target/
 **/target/
-Cargo.lock
 
-# If it's a binary (blockchain node), you MAY want to keep Cargo.lock
-# Uncomment below if needed
-#! Cargo.lock
+# This workspace builds a runnable blockchain node, so keep Cargo.lock tracked.
 
 # =========================
 # Substrate specific
