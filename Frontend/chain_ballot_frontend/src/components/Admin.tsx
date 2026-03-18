@@ -1,4 +1,3 @@
-// Admin.tsx - Complete Admin Dashboard with Substrate Integration
 import React, { useEffect, useRef, useState } from "react";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { Keyring } from "@polkadot/keyring";
@@ -37,9 +36,10 @@ type ElectionStatus = {
   blockchain_phase: "NotStarted" | "Voting" | "Ended" | "TallyComplete" | null;
 };
 
-// CHANGED: removed blockchain_candidate_id — candidates are Django-only now
+// CHANGED: removed blockchain_candidate_id - candidates are Django-only now
 type AdminCandidate = {
   id: number;
+  candidate_id: number | null; // explicit admin-assigned ID, shown during tallying
   name: string;
   post: string;
   photo_url: string;
@@ -70,6 +70,8 @@ const FEE_AMOUNT = "1000000000000"; // 1 token
 const ALICE_SEED = "//Alice";
 const NODE_URL = "ws://127.0.0.1:9944";
 const API_BASE_URL = "http://127.0.0.1:8000";
+const getChainCandidateId = (candidate: AdminCandidate) =>
+  candidate.candidate_id ?? candidate.id;
 
 // ==================== ADMIN LOGIN COMPONENT ====================
 const AdminLogin: React.FC<{ onLoginSuccess: () => void }> = ({
@@ -105,10 +107,9 @@ const AdminLogin: React.FC<{ onLoginSuccess: () => void }> = ({
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[radial-gradient(circle_at_top,_#dbeafe,_#f8fafc_45%)] p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="text-6xl mb-4">🔐</div>
           <h1 className="text-3xl font-bold text-slate-800 mb-2 tracking-tight">
             Admin Login
           </h1>
@@ -146,7 +147,7 @@ const AdminLogin: React.FC<{ onLoginSuccess: () => void }> = ({
             </div>
             {error && (
               <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
-                <p className="text-red-700 text-sm font-semibold">❌ {error}</p>
+                <p className="text-red-700 text-sm font-semibold">{error}</p>
               </div>
             )}
             <button
@@ -166,7 +167,7 @@ const AdminLogin: React.FC<{ onLoginSuccess: () => void }> = ({
           </form>
           <div className="mt-6 pt-6 border-t border-gray-200">
             <p className="text-xs text-gray-500 text-center">
-              ⚠️ Only staff/superuser accounts can access this dashboard
+              Only staff/superuser accounts can access this dashboard
             </p>
           </div>
         </div>
@@ -238,7 +239,7 @@ const VoteRevealPanel: React.FC<{
       if (api.query.voting.voteCounter) {
         total = ((await api.query.voting.voteCounter()) as any).toNumber();
       }
-      console.log("🗳️ Total votes on chain:", total);
+      console.log("Total votes on chain:", total);
 
       const votes: EncryptedVote[] = [];
       for (let i = 0; i < total; i++) {
@@ -261,7 +262,7 @@ const VoteRevealPanel: React.FC<{
         }
       }
 
-      console.log(`✅ Fetched ${votes.length} votes`);
+      console.log(`Fetched ${votes.length} votes`);
       setEncryptedVotes(votes);
 
       const revealedCount = api.query.voting.revealedCount
@@ -328,7 +329,7 @@ const VoteRevealPanel: React.FC<{
             } else {
               msg = result.dispatchError.toString?.() ?? msg;
             }
-            console.error("❌ revealVote dispatchError:", msg);
+            console.error("revealVote dispatchError:", msg);
             reject(new Error(msg));
             return;
           }
@@ -378,7 +379,7 @@ const VoteRevealPanel: React.FC<{
             } else {
               msg = result.dispatchError.toString?.() ?? msg;
             }
-            console.error("❌ finalizeTally dispatchError:", msg);
+            console.error("finalizeTally dispatchError:", msg);
             reject(new Error(msg));
             return;
           }
@@ -404,7 +405,7 @@ const VoteRevealPanel: React.FC<{
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
       <NotificationStack notices={notices} onDismiss={dismissNotice} />
       <h2 className="text-xl font-bold text-gray-800 mb-4">
-        🔍 Vote Decryption & Reveal
+        Vote Decryption and Reveal
       </h2>
 
       {revealProgress.total > 0 && (
@@ -431,7 +432,7 @@ const VoteRevealPanel: React.FC<{
           onClick={() => setShowPrivateKeyInput(!showPrivateKeyInput)}
           className="text-blue-600 hover:text-blue-700 font-medium mb-3"
         >
-          {showPrivateKeyInput ? "▼ Hide" : "▶ Show"} RSA Private Key Input
+          {showPrivateKeyInput ? "Hide" : "Show"} RSA Private Key Input
         </button>
         {showPrivateKeyInput && (
           <div className="p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
@@ -445,7 +446,7 @@ const VoteRevealPanel: React.FC<{
               placeholder="-----BEGIN RSA PRIVATE KEY----- ..."
             />
             <p className="text-xs text-gray-500 mt-2">
-              ⚠️ Private key is processed locally and never sent to server
+              Private key is processed locally and never sent to server
             </p>
           </div>
         )}
@@ -502,7 +503,7 @@ const VoteRevealPanel: React.FC<{
                 disabled={!privateKey}
                 className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
               >
-                🔓 Decrypt Vote
+                Decrypt Vote
               </button>
               {decryptedData && (
                 <>
@@ -524,10 +525,12 @@ const VoteRevealPanel: React.FC<{
                       className="w-full p-2 border border-gray-300 rounded-lg"
                     >
                       <option value="">Choose candidate...</option>
-                      {/* CHANGED: use candidate.id directly — no blockchain_candidate_id */}
                       {candidates.map((c) => (
-                        <option key={c.id} value={String(c.id)}>
-                          {c.name} ({c.post})
+                        <option
+                          key={c.id}
+                          value={String(getChainCandidateId(c))}
+                        >
+                          [ID: {getChainCandidateId(c)}] {c.name} ({c.post})
                         </option>
                       ))}
                     </select>
@@ -537,9 +540,7 @@ const VoteRevealPanel: React.FC<{
                     disabled={!selectedCandidate || revealing}
                     className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
                   >
-                    {revealing
-                      ? "Revealing..."
-                      : "✅ Reveal Vote on Blockchain"}
+                    {revealing ? "Revealing..." : "Reveal Vote on Blockchain"}
                   </button>
                 </>
               )}
@@ -555,7 +556,7 @@ const VoteRevealPanel: React.FC<{
               onClick={handleFinalizeTally}
               className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 font-semibold"
             >
-              🏁 Finalize Tally & Publish Results
+              Finalize Tally and Publish Results
             </button>
           </div>
         )}
@@ -579,10 +580,10 @@ const ResultsDisplay: React.FC<{
       const tallyData: Record<number, number> = {};
       let total = 0;
       for (const candidate of candidates) {
-        // CHANGED: use candidate.id directly — no blockchain_candidate_id
-        const count = await (api.query.voting.tally as any)(candidate.id);
+        const chainCandidateId = getChainCandidateId(candidate);
+        const count = await (api.query.voting.tally as any)(chainCandidateId);
         const votes = count.toNumber();
-        tallyData[candidate.id] = votes;
+        tallyData[chainCandidateId] = votes;
         total += votes;
       }
       setTally(tallyData);
@@ -603,7 +604,7 @@ const ResultsDisplay: React.FC<{
       try {
         const unsub = await (api.query.voting.voteCounter as any)(
           (counter: any) => {
-            console.log("🔄 Vote counter changed:", counter.toString());
+            console.log("Vote counter changed:", counter.toString());
             fetchTally();
           },
         );
@@ -629,15 +630,15 @@ const ResultsDisplay: React.FC<{
   }
 
   const sortedCandidates = [...candidates].sort(
-    (a, b) => (tally[b.id] || 0) - (tally[a.id] || 0),
+    (a, b) =>
+      (tally[getChainCandidateId(b)] || 0) -
+      (tally[getChainCandidateId(a)] || 0),
   );
   const winner = sortedCandidates[0];
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-      <h2 className="text-xl font-bold text-gray-800 mb-4">
-        📊 Election Results
-      </h2>
+      <h2 className="text-xl font-bold text-gray-800 mb-4">Election Results</h2>
       {totalVotes > 0 && (
         <div className="mb-6 p-4 bg-green-50 border border-green-300 rounded-lg">
           <div className="text-center">
@@ -648,7 +649,8 @@ const ResultsDisplay: React.FC<{
             <div className="mt-3 pt-3 border-t border-green-200">
               <p className="text-sm text-gray-600">Current Leader</p>
               <p className="text-xl font-bold text-green-800">
-                {winner.name} ({winner.post}) — {tally[winner.id] || 0} votes
+                {winner.name} ({winner.post}) -{" "}
+                {tally[getChainCandidateId(winner)] || 0} votes
               </p>
             </div>
           )}
@@ -663,7 +665,7 @@ const ResultsDisplay: React.FC<{
               <h3 className="font-semibold text-gray-700 mb-3">{post}</h3>
               <div className="space-y-3">
                 {postCandidates.map((candidate) => {
-                  const votes = tally[candidate.id] || 0;
+                  const votes = tally[getChainCandidateId(candidate)] || 0;
                   const percentage =
                     totalVotes > 0
                       ? ((votes / totalVotes) * 100).toFixed(1)
@@ -729,9 +731,9 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const confirmResolverRef = useRef<((accepted: boolean) => void) | null>(null);
   const [api, setApi] = useState<ApiPromise | null>(null);
   const [connected, setConnected] = useState(false);
-  const [activeTab, setActiveTab] = useState<"accounts" | "reveal" | "results">(
-    "accounts",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "accounts" | "funding" | "reveal" | "results"
+  >("accounts");
   const apiRef = useRef<ApiPromise | null>(null);
   const phaseUnsubRef = useRef<(() => void) | null>(null);
 
@@ -800,7 +802,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       const provider = new WsProvider(NODE_URL);
       const apiInstance = await ApiPromise.create({ provider });
       await apiInstance.isReady;
-      console.log("✅ Blockchain connected");
+      console.log("Blockchain connected");
 
       if (!apiInstance.query.voting) {
         pushNotice(
@@ -925,7 +927,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
           const cached = cachedByRoll.get(voter.roll);
           const mnemonic = cached?.mnemonic || mnemonicGenerate(12);
           const account = keyring.addFromUri(mnemonic);
-          console.log(`  ${index + 1}. ${voter.name} → ${account.address}`);
+          console.log(`  ${index + 1}. ${voter.name} -> ${account.address}`);
           return {
             ...voter,
             mnemonic,
@@ -1008,7 +1010,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         });
         await new Promise((resolve) => setTimeout(resolve, 2000));
       } catch (error) {
-        console.error(`❌ Failed to fund ${account.name}:`, error);
+        console.error(`Failed to fund ${account.name}:`, error);
       }
     }
 
@@ -1026,7 +1028,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     setFundingProgress({ current: 0, total: 0 });
   };
 
-  // CHANGED: registerCandidate now only saves to Django — no on-chain call
+  // CHANGED: registerCandidate now only saves to Django - no on-chain call
   const registerCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!candidateForm.name.trim()) {
@@ -1102,9 +1104,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
           return;
         }
         if (result.status.isInBlock) {
-          console.log(
-            `✅ Election started in block ${result.status.asInBlock}`,
-          );
+          console.log(`Election started in block ${result.status.asInBlock}`);
           resolve();
         }
       });
@@ -1182,7 +1182,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
           return;
         }
         if (result.status.isInBlock) {
-          console.log(`✅ Election ended in block ${result.status.asInBlock}`);
+          console.log(`Election ended in block ${result.status.asInBlock}`);
           resolve();
         }
       });
@@ -1367,7 +1367,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       return;
     }
 
-    // Clear localStorage and regenerate — this resets funded flags too
+    // Clear localStorage and regenerate - this resets funded flags too
     localStorage.removeItem("blockchain_accounts");
     await fetchAndGenerateAccounts();
     pushNotice(
@@ -1435,7 +1435,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,_#e0f2fe,_#f8fafc_35%,_#f8fafc)] px-4 py-6 md:px-8 md:py-10">
+    <div className="min-h-screen  px-4 py-6 md:px-8 md:py-10">
       <NotificationStack notices={notices} onDismiss={dismissNotice} />
       <ConfirmDialog
         open={confirmState.open}
@@ -1451,7 +1451,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold mb-2 tracking-tight">
-                🔑 Blockchain Voting Admin
+                Blockchain Voting Admin
               </h1>
               <p className="text-blue-100 text-sm md:text-base">
                 Complete election management dashboard
@@ -1461,7 +1461,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               onClick={handleLogout}
               className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors font-semibold"
             >
-              🚪 Logout
+              Logout
             </button>
           </div>
         </div>
@@ -1476,9 +1476,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                 className={`w-3 h-3 rounded-full ${connected ? "bg-green-500" : "bg-red-500"} animate-pulse`}
               />
               <span className="font-semibold">
-                {connected
-                  ? "✅ Blockchain Connected"
-                  : "❌ Blockchain Disconnected"}
+                {connected ? "Blockchain Connected" : "Blockchain Disconnected"}
               </span>
             </div>
             {!connected && (
@@ -1501,26 +1499,32 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
         {/* Tab Navigation */}
         <div className="bg-white rounded-xl p-2 flex gap-2 border border-slate-200">
-          {(["accounts", "reveal", "results"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              disabled={tab === "reveal" && electionStatus?.status !== "ended"}
-              className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-colors ${
-                activeTab === tab
-                  ? "bg-blue-600 text-white"
-                  : tab === "reveal" && electionStatus?.status !== "ended"
-                    ? "text-gray-400 cursor-not-allowed"
-                    : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              {tab === "accounts"
-                ? "👥 Voter Accounts"
-                : tab === "reveal"
-                  ? "🔓 Reveal Votes"
-                  : "📊 Results"}
-            </button>
-          ))}
+          {(["accounts", "funding", "reveal", "results"] as const).map(
+            (tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                disabled={
+                  tab === "reveal" && electionStatus?.status !== "ended"
+                }
+                className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-colors ${
+                  activeTab === tab
+                    ? "bg-blue-600 text-white"
+                    : tab === "reveal" && electionStatus?.status !== "ended"
+                      ? "text-gray-400 cursor-not-allowed"
+                      : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                {tab === "accounts"
+                  ? "Register Candidates"
+                  : tab === "funding"
+                    ? "Account Funding"
+                    : tab === "reveal"
+                      ? "Reveal Votes"
+                      : "Results"}
+              </button>
+            ),
+          )}
         </div>
 
         {/* Election Status Bar */}
@@ -1569,7 +1573,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               >
                 {electionActionLoading && electionStatus?.status !== "active"
                   ? "Starting..."
-                  : "▶️ Start Election"}
+                  : "Start Election"}
               </button>
               <button
                 onClick={endElection}
@@ -1582,7 +1586,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               >
                 {electionActionLoading && electionStatus?.status === "active"
                   ? "Ending..."
-                  : "⏹ End Election"}
+                  : "End Election"}
               </button>
             </div>
           </div>
@@ -1601,10 +1605,10 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         {/* Tab Content */}
         {activeTab === "accounts" && (
           <>
-            {/* Candidate Registration — Django only, no on-chain call */}
+            {/* Candidate Registration - Django only, no on-chain call */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
               <h2 className="text-xl font-bold text-gray-800 mb-4">
-                🧑‍💼 Candidate Registration
+                Candidate Registration
               </h2>
               <form
                 onSubmit={registerCandidate}
@@ -1724,7 +1728,28 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               </div>
             </div>
 
-            {/* Stats */}
+            {accounts.length === 0 && (
+              <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+                <h3 className="text-2xl font-bold text-gray-700 mb-2">
+                  No Registered Voters
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  When students register and verify their emails, their
+                  blockchain accounts will appear here automatically.
+                </p>
+                <button
+                  onClick={refreshAccounts}
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  Check Again
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === "funding" && (
+          <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {[
                 {
@@ -1760,8 +1785,10 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               ))}
             </div>
 
-            {/* Controls */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">
+                Funding and Export Controls
+              </h2>
               <div className="flex flex-wrap gap-3">
                 <button
                   onClick={fundAllAccounts}
@@ -1781,7 +1808,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                     </>
                   ) : (
                     <>
-                      💰 Fund All Accounts (
+                      Fund All Accounts (
                       {accounts.filter((a) => !a.funded).length})
                     </>
                   )}
@@ -1791,20 +1818,20 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                   disabled={accounts.length === 0}
                   className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium transition-colors"
                 >
-                  📥 Download JSON
+                  Download JSON
                 </button>
                 <button
                   onClick={downloadCSV}
                   disabled={accounts.length === 0}
                   className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 font-medium transition-colors"
                 >
-                  📊 Download CSV
+                  Download CSV
                 </button>
                 <button
                   onClick={refreshAccounts}
                   className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium transition-colors"
                 >
-                  🔄 Refresh
+                  Refresh
                 </button>
                 <button
                   onClick={resetFundedStatus}
@@ -1814,58 +1841,34 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                   className="bg-amber-500 text-white px-6 py-3 rounded-lg hover:bg-amber-600 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-colors"
                   title="Use this after purging the chain to re-fund accounts"
                 >
-                  🔁 Reset Funding
+                  Reset Funding
                 </button>
               </div>
             </div>
 
             {accounts.length > 0 && (
               <div className="bg-red-50 border-2 border-red-300 rounded-lg p-5">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">⚠️</span>
-                  <div>
-                    <p className="font-bold text-red-700 mb-2">
-                      CRITICAL SECURITY WARNINGS
-                    </p>
-                    <ul className="text-sm text-red-600 space-y-1 ml-5 list-disc">
-                      <li>
-                        <strong>Start election only after final review</strong>{" "}
-                        — mnemonics are emailed automatically on start
-                      </li>
-                      <li>
-                        <strong>Store files securely</strong> — They contain all
-                        recovery phrases
-                      </li>
-                      <li>
-                        <strong>Never share mnemonics publicly</strong> — Anyone
-                        with them can vote
-                      </li>
-                      <li>
-                        <strong>Accounts in localStorage</strong> — Backup
-                        available until browser cache is cleared
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {accounts.length === 0 && (
-              <div className="bg-white rounded-xl shadow-lg p-12 text-center">
-                <div className="text-6xl mb-4">📭</div>
-                <h3 className="text-2xl font-bold text-gray-700 mb-2">
-                  No Registered Voters
-                </h3>
-                <p className="text-gray-500 mb-4">
-                  When students register and verify their emails, their
-                  blockchain accounts will appear here automatically.
+                <p className="font-bold text-red-700 mb-2">
+                  Critical Security Warnings
                 </p>
-                <button
-                  onClick={refreshAccounts}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium"
-                >
-                  🔄 Check Again
-                </button>
+                <ul className="text-sm text-red-600 space-y-1 ml-5 list-disc">
+                  <li>
+                    <strong>Start election only after final review</strong> -
+                    mnemonics are emailed automatically on start
+                  </li>
+                  <li>
+                    <strong>Store files securely</strong> - They contain all
+                    recovery phrases
+                  </li>
+                  <li>
+                    <strong>Never share mnemonics publicly</strong> - Anyone
+                    with them can vote
+                  </li>
+                  <li>
+                    <strong>Accounts in localStorage</strong> - Backup available
+                    until browser cache is cleared
+                  </li>
+                </ul>
               </div>
             )}
 
@@ -1887,7 +1890,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                       <span
                         className={`text-xs px-3 py-1 rounded-full font-semibold ${acc.funded ? "bg-green-500 text-white" : "bg-orange-500 text-white"}`}
                       >
-                        {acc.funded ? "✅ Funded" : "⏳ Pending"}
+                        {acc.funded ? "Funded" : "Pending"}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600 mb-3">{acc.email}</p>
@@ -1933,9 +1936,9 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                 onClick={() => setSelected(null)}
                 className="absolute top-4 right-4 text-white hover:text-gray-200 text-3xl font-bold"
               >
-                ×
+                x
               </button>
-              <h2 className="text-2xl font-bold">📧 Voter Credentials</h2>
+              <h2 className="text-2xl font-bold">Voter Credentials</h2>
               <p className="text-blue-100 text-sm mt-1">{selected.name}</p>
             </div>
             <div className="p-6">
@@ -1944,8 +1947,8 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               >
                 <p className="font-semibold">
                   {selected.funded
-                    ? "✅ Account funded and ready to vote!"
-                    : "⚠️ Account needs funding before voting"}
+                    ? "Account funded and ready to vote"
+                    : "Account needs funding before voting"}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-4 mb-6">
@@ -1966,7 +1969,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               </div>
               <div className="mb-6">
                 <p className="text-sm font-semibold text-gray-700 mb-2">
-                  🔗 Blockchain Address
+                  Blockchain Address
                 </p>
                 <div className="flex gap-2">
                   <code className="flex-1 bg-gray-100 p-3 rounded-lg text-sm break-all border border-gray-300">
@@ -1976,17 +1979,17 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                     onClick={() => copyText(selected.address, "Address")}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                   >
-                    📋
+                    Copy
                   </button>
                 </div>
               </div>
               <div className="bg-red-50 border-2 border-red-300 rounded-lg p-5 mb-6">
                 <p className="font-bold text-red-700 mb-2">
-                  🔐 Secret Recovery Phrase (12 Words)
+                  Secret Recovery Phrase (12 Words)
                 </p>
                 <p className="text-sm text-red-600 mb-4">
-                  ⚠️ <strong>WARNING:</strong> Anyone with these words controls
-                  this voting account!
+                  <strong>Warning:</strong> Anyone with these words controls
+                  this voting account.
                 </p>
                 <div className="bg-white rounded-lg p-4 mb-4 border-2 border-red-200">
                   <code className="text-sm text-gray-800 block break-all leading-relaxed">
@@ -1998,19 +2001,19 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                     onClick={() => copyText(selected.mnemonic, "Mnemonic")}
                     className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 font-medium"
                   >
-                    📋 Copy Phrase
+                    Copy Phrase
                   </button>
                   <button
                     onClick={() => sendCredentialsForAccount(selected, false)}
                     className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium"
                   >
-                    📧 Email to Student
+                    Email to Student
                   </button>
                 </div>
               </div>
               <div className="flex flex-col items-center rounded-lg p-6">
                 <p className="font-semibold text-gray-700 mb-4">
-                  📱 QR Code for Mobile Import
+                  QR Code for Mobile Import
                 </p>
                 <div className="bg-white p-4 rounded-lg border-2 border-gray-300 shadow-sm">
                   <QRCodeCanvas value={selected.mnemonic} size={200} />

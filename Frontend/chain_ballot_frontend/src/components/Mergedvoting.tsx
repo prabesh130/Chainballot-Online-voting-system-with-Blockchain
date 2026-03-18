@@ -12,6 +12,7 @@ import {
 
 type Candidate = {
   id: number;
+  candidate_id: number | null; // explicit admin-assigned ID
   name: string;
   post: string;
   photo_url: string;
@@ -131,6 +132,9 @@ const VotingPortal: React.FC<{
   const [votes, setVotes] = useState<Record<string, number | null>>({});
   const [showSummary, setShowSummary] = useState(false);
 
+  const getCandidateVoteId = (candidate: Candidate) =>
+    candidate.candidate_id ?? candidate.id;
+
   const currentPos = posts[step];
   const allVotesSelected = posts.every((p) => votes[p]);
 
@@ -204,7 +208,7 @@ const VotingPortal: React.FC<{
               {Object.entries(votes).map(([position, candidateId]) => {
                 const candidate = Object.values(candidatesByPost)
                   .flat()
-                  .find((c) => c.id === candidateId);
+                  .find((c) => getCandidateVoteId(c) === candidateId);
                 return (
                   <div
                     key={position}
@@ -220,6 +224,11 @@ const VotingPortal: React.FC<{
                       <div className="font-medium text-gray-800">
                         {candidate?.name}
                       </div>
+                      {candidate?.candidate_id != null && (
+                        <div className="text-xs font-mono text-blue-600">
+                          ID: {candidate.candidate_id}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -336,9 +345,11 @@ const VotingPortal: React.FC<{
           {(candidatesByPost[currentPos] || []).map((c) => (
             <div
               key={c.id}
-              onClick={() => setVotes({ ...votes, [currentPos]: c.id })}
+              onClick={() =>
+                setVotes({ ...votes, [currentPos]: getCandidateVoteId(c) })
+              }
               className={`group cursor-pointer border-2 rounded-2xl p-6 text-center transition-all duration-300 hover:shadow-xl ${
-                votes[currentPos] === c.id
+                votes[currentPos] === getCandidateVoteId(c)
                   ? "border-indigo-600 bg-indigo-50 shadow-lg scale-105"
                   : "border-gray-200 hover:border-indigo-300 bg-white"
               }`}
@@ -348,12 +359,12 @@ const VotingPortal: React.FC<{
                   src={c.photo_url || DEFAULT_CANDIDATE_IMAGE}
                   alt={c.name}
                   className={`w-32 h-32 rounded-full mx-auto object-cover transition-all duration-300 ${
-                    votes[currentPos] === c.id
+                    votes[currentPos] === getCandidateVoteId(c)
                       ? "ring-4 ring-indigo-400"
                       : "group-hover:ring-4 group-hover:ring-indigo-200"
                   }`}
                 />
-                {votes[currentPos] === c.id && (
+                {votes[currentPos] === getCandidateVoteId(c) && (
                   <div className="absolute -top-2 -right-2 bg-indigo-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg">
                     <svg
                       className="w-6 h-6"
@@ -374,12 +385,14 @@ const VotingPortal: React.FC<{
               <h3 className="text-xl font-semibold text-gray-800">{c.name}</h3>
               <div
                 className={`mt-3 text-sm font-medium ${
-                  votes[currentPos] === c.id
+                  votes[currentPos] === getCandidateVoteId(c)
                     ? "text-indigo-600"
                     : "text-gray-500"
                 }`}
               >
-                {votes[currentPos] === c.id ? "Selected" : "Click to select"}
+                {votes[currentPos] === getCandidateVoteId(c)
+                  ? "Selected"
+                  : "Click to select"}
               </div>
             </div>
           ))}
@@ -508,12 +521,16 @@ const VoteProcessing: React.FC<{
     try {
       const electionRes = await fetch(
         "http://127.0.0.1:8000/voting/election/status/",
-        { credentials: "include" }
+        { credentials: "include" },
       );
       if (electionRes.ok) {
         const electionData: ElectionStatus = await electionRes.json();
         if (electionData.status !== "active") {
-          onNotify("warning", "Voting is closed", "Election is not active right now.");
+          onNotify(
+            "warning",
+            "Voting is closed",
+            "Election is not active right now.",
+          );
           setIsProcessing(false);
           return;
         }
@@ -525,7 +542,7 @@ const VoteProcessing: React.FC<{
       const encryptedBinary = atob(payload.encryptedVote);
       const encryptedBytes = Array.from(
         { length: encryptedBinary.length },
-        (_, i) => encryptedBinary.charCodeAt(i)
+        (_, i) => encryptedBinary.charCodeAt(i),
       );
 
       // signature is a hex string — hexToU8a is correct
@@ -547,7 +564,7 @@ const VoteProcessing: React.FC<{
               if (result.dispatchError.isModule) {
                 try {
                   const decoded = api.registry.findMetaError(
-                    result.dispatchError.asModule
+                    result.dispatchError.asModule,
                   );
                   msg = `${decoded.section}.${decoded.name}: ${decoded.docs.join(" ")}`;
                 } catch {
@@ -563,7 +580,10 @@ const VoteProcessing: React.FC<{
 
             // FIX 3: isInBlock is sufficient — don't wait for isFinalized
             if (result.status.isInBlock) {
-              console.log("✅ Vote in block:", result.status.asInBlock.toString());
+              console.log(
+                "✅ Vote in block:",
+                result.status.asInBlock.toString(),
+              );
               resolve();
             }
           });
@@ -573,10 +593,13 @@ const VoteProcessing: React.FC<{
       setTimeout(() => {
         window.location.href = "/";
       }, 3000);
-
     } catch (error: any) {
       console.error("Failed to submit vote:", error);
-      onNotify("error", "Failed to submit vote", error?.message || "Please try again.");
+      onNotify(
+        "error",
+        "Failed to submit vote",
+        error?.message || "Please try again.",
+      );
     } finally {
       // FIX 4: Always reset in finally so button never stays stuck
       setIsProcessing(false);
@@ -719,16 +742,41 @@ const VoteProcessing: React.FC<{
           >
             {isProcessing ? (
               <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
                 </svg>
                 Verifying...
               </>
             ) : (
               <>
-                <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-6 h-6 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
                 Verify Vote
               </>
@@ -742,16 +790,41 @@ const VoteProcessing: React.FC<{
           >
             {isProcessing ? (
               <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
                 </svg>
                 Submitting to Blockchain...
               </>
             ) : (
               <>
-                <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <svg
+                  className="w-6 h-6 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
                 </svg>
                 Submit to Blockchain
               </>
@@ -761,20 +834,34 @@ const VoteProcessing: React.FC<{
 
         <div className="bg-black rounded-xl p-6 border border-gray-200 mt-2">
           <h3 className="font-semibold text-white mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <svg
+              className="w-5 h-5 mr-2 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
             </svg>
             Encrypted Vote Data
           </h3>
           <div className="space-y-3">
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Encrypted Vote</label>
+              <label className="text-xs text-gray-500 block mb-1">
+                Encrypted Vote
+              </label>
               <div className="bg-black rounded-lg p-3 border border-gray-200 font-mono text-xs text-green-400 break-all max-h-20 overflow-y-auto">
                 {payload?.encryptedVote || "Generating..."}
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Signature</label>
+              <label className="text-xs text-gray-500 block mb-1">
+                Signature
+              </label>
               <div className="bg-black rounded-lg p-3 border border-gray-200 font-mono text-xs text-green-400 break-all max-h-20 overflow-y-auto">
                 {signature || "Not yet signed"}
               </div>
@@ -784,8 +871,18 @@ const VoteProcessing: React.FC<{
 
         <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-start">
-            <svg className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <p className="text-sm text-blue-800">
               Your vote is encrypted and anonymized using blind signature
@@ -801,14 +898,23 @@ const VoteProcessing: React.FC<{
 const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
   const [account, setAccount] = useState<any>(null);
   const [votes, setVotes] = useState<VotesByPosition | null>(null);
-  const [electionStatus, setElectionStatus] = useState<ElectionStatus | null>(null);
+  const [electionStatus, setElectionStatus] = useState<ElectionStatus | null>(
+    null,
+  );
   const [posts, setPosts] = useState<string[]>([]);
-  const [candidatesByPost, setCandidatesByPost] = useState<Record<string, Candidate[]>>({});
+  const [candidatesByPost, setCandidatesByPost] = useState<
+    Record<string, Candidate[]>
+  >({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notices, setNotices] = useState<NoticeItem[]>([]);
 
-  const pushNotice = (kind: NoticeKind, title: string, message?: string, timeout = 5000) => {
+  const pushNotice = (
+    kind: NoticeKind,
+    title: string,
+    message?: string,
+    timeout = 5000,
+  ) => {
     const id = Date.now() + Math.floor(Math.random() * 1000);
     setNotices((prev) => [...prev, { id, kind, title, message }]);
     window.setTimeout(() => {
@@ -827,8 +933,12 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
 
       try {
         const [statusRes, candidatesRes] = await Promise.all([
-          fetch("http://127.0.0.1:8000/voting/election/status/", { credentials: "include" }),
-          fetch("http://127.0.0.1:8000/voting/election/candidates/", { credentials: "include" }),
+          fetch("http://127.0.0.1:8000/voting/election/status/", {
+            credentials: "include",
+          }),
+          fetch("http://127.0.0.1:8000/voting/election/candidates/", {
+            credentials: "include",
+          }),
         ]);
 
         if (!statusRes.ok) throw new Error("Failed to fetch election status");
@@ -840,8 +950,9 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
         setElectionStatus(statusData);
         setPosts(
           (candidateData.posts || []).filter(
-            (post: string) => (candidateData.candidates?.[post] || []).length > 0
-          )
+            (post: string) =>
+              (candidateData.candidates?.[post] || []).length > 0,
+          ),
         );
         setCandidatesByPost(candidateData.candidates || {});
       } catch (error: any) {
@@ -875,7 +986,9 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
         <NotificationStack notices={notices} onDismiss={dismissNotice} />
         <div className="min-h-screen flex items-center justify-center px-4">
           <div className="max-w-lg w-full bg-white rounded-xl shadow-lg p-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">Unable to Open Voting</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-3">
+              Unable to Open Voting
+            </h2>
             <p className="text-red-600">{loadError}</p>
           </div>
         </div>
@@ -890,7 +1003,9 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
         <div className="min-h-screen flex items-center justify-center px-4">
           <div className="max-w-lg w-full bg-white rounded-xl shadow-lg p-8 text-center">
             <h2 className="text-2xl font-bold text-gray-800 mb-3">
-              {electionStatus?.status === "ended" ? "Election Has Ended" : "Election Not Started"}
+              {electionStatus?.status === "ended"
+                ? "Election Has Ended"
+                : "Election Not Started"}
             </h2>
             <p className="text-gray-600">
               {electionStatus?.status === "ended"
@@ -909,8 +1024,12 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
         <NotificationStack notices={notices} onDismiss={dismissNotice} />
         <div className="min-h-screen flex items-center justify-center px-4">
           <div className="max-w-lg w-full bg-white rounded-xl shadow-lg p-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">Candidates Not Published</h2>
-            <p className="text-gray-600">Please contact admin. Candidate registration is incomplete.</p>
+            <h2 className="text-2xl font-bold text-gray-800 mb-3">
+              Candidates Not Published
+            </h2>
+            <p className="text-gray-600">
+              Please contact admin. Candidate registration is incomplete.
+            </p>
           </div>
         </div>
       </>
