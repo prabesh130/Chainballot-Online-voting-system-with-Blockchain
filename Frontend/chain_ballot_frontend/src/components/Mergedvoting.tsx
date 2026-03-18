@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { ApiPromise } from "@polkadot/api";
 import { Keyring } from "@polkadot/keyring";
-import { hexToU8a, stringToU8a } from "@polkadot/util";
+import { hexToU8a } from "@polkadot/util";
+// FIX: removed unused stringToU8a import
 import forge from "node-forge";
 import {
   type NoticeItem,
@@ -60,7 +61,6 @@ const MnemonicGate: React.FC<MnemonicGateProps> = ({ onImported }) => {
     try {
       const trimmedMnemonic = mnemonic.trim();
 
-      // Validate mnemonic format (should be 12 or 24 words)
       const words = trimmedMnemonic.split(/\s+/);
       if (words.length !== 12 && words.length !== 24) {
         setError("Recovery phrase must be 12 or 24 words");
@@ -71,14 +71,12 @@ const MnemonicGate: React.FC<MnemonicGateProps> = ({ onImported }) => {
       const keyring = new Keyring({ type: "sr25519" });
       const acc = keyring.addFromUri(trimmedMnemonic);
 
-      // Additional validation: check if account was created successfully
       if (!acc || !acc.address) {
         setError("Invalid recovery phrase");
         setIsLoading(false);
         return;
       }
 
-      // Only call onImported if everything is valid
       onImported(acc);
       setIsLoading(false);
     } catch (err) {
@@ -103,7 +101,7 @@ const MnemonicGate: React.FC<MnemonicGateProps> = ({ onImported }) => {
           value={mnemonic}
           onChange={(e) => {
             setMnemonic(e.target.value);
-            if (error) setError(null); // Clear error when user starts typing
+            if (error) setError(null);
           }}
           placeholder="Enter your 12-word recovery phrase..."
         />
@@ -151,13 +149,10 @@ const VotingPortal: React.FC<{
     );
   }
 
-  // Generate encrypted vote preview (simplified for display)
   const getEncryptedPreview = () => {
     if (!allVotesSelected) return "";
     const voteStr = JSON.stringify(votes);
-    // Create a hash-like preview for display purposes
-    const preview = btoa(voteStr).substring(0, 64) + "...";
-    return preview;
+    return btoa(voteStr).substring(0, 64) + "...";
   };
 
   if (showSummary && allVotesSelected) {
@@ -188,7 +183,6 @@ const VotingPortal: React.FC<{
             </p>
           </div>
 
-          {/* Vote Selections */}
           <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6 border border-indigo-100 mb-6">
             <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
               <svg
@@ -233,7 +227,6 @@ const VotingPortal: React.FC<{
             </div>
           </div>
 
-          {/* Encrypted Vote Details */}
           <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 mb-6">
             <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
               <svg
@@ -274,7 +267,6 @@ const VotingPortal: React.FC<{
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex gap-4">
             <button
               onClick={() => setShowSummary(false)}
@@ -295,8 +287,7 @@ const VotingPortal: React.FC<{
   }
 
   return (
-    <div className="min-h-screen  flex flex-col items-center justify-center px-6 py-12">
-      {/* Progress Bar */}
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
       <div className="max-w-4xl w-full mb-8">
         <div className="flex items-center justify-between mb-3">
           {posts.map((pos, idx) => (
@@ -333,7 +324,6 @@ const VotingPortal: React.FC<{
         </div>
       </div>
 
-      {/* Main Card */}
       <div className="max-w-4xl w-full bg-white rounded-2xl shadow-2xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent mb-2">
@@ -342,7 +332,6 @@ const VotingPortal: React.FC<{
           <p className="text-gray-600">Select your preferred candidate</p>
         </div>
 
-        {/* Candidate Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
           {(candidatesByPost[currentPos] || []).map((c) => (
             <div
@@ -396,7 +385,6 @@ const VotingPortal: React.FC<{
           ))}
         </div>
 
-        {/* Navigation Buttons */}
         <div className="flex justify-between items-center pt-6 border-t">
           <button
             disabled={step === 0}
@@ -520,71 +508,81 @@ const VoteProcessing: React.FC<{
     try {
       const electionRes = await fetch(
         "http://127.0.0.1:8000/voting/election/status/",
-        {
-          credentials: "include",
-        },
+        { credentials: "include" }
       );
       if (electionRes.ok) {
         const electionData: ElectionStatus = await electionRes.json();
         if (electionData.status !== "active") {
-          onNotify(
-            "warning",
-            "Voting is closed",
-            "Election is not active right now.",
-          );
+          onNotify("warning", "Voting is closed", "Election is not active right now.");
           setIsProcessing(false);
           return;
         }
       }
 
-      // Convert to bytes
-      const encryptedBytes = Array.from(stringToU8a(payload.encryptedVote));
+      // FIX 1: encryptedVote is base64 (from forge.util.encode64).
+      // The old code used stringToU8a which treated it as UTF-8 text — wrong.
+      // atob() decodes base64 to the actual binary string, then we get char codes.
+      const encryptedBinary = atob(payload.encryptedVote);
+      const encryptedBytes = Array.from(
+        { length: encryptedBinary.length },
+        (_, i) => encryptedBinary.charCodeAt(i)
+      );
+
+      // signature is a hex string — hexToU8a is correct
       const signatureBytes = Array.from(hexToU8a(signature));
 
-      await api.tx.voting
-        .submitVote(encryptedBytes, signatureBytes)
-        .signAndSend(account, (result: any) => {
-          console.log("Status:", result.status.toString());
+      console.log("📤 Submitting vote to blockchain...");
+      console.log("  encryptedBytes length:", encryptedBytes.length);
+      console.log("  signatureBytes length:", signatureBytes.length);
 
-          if (result.dispatchError) {
-            if (result.dispatchError.isModule) {
-              const decoded = api.registry.findMetaError(
-                result.dispatchError.asModule,
-              );
-              console.error(`Error: ${decoded.section}.${decoded.name}`);
-            } else {
-              console.error(result.dispatchError.toString());
+      await new Promise<void>((resolve, reject) => {
+        api.tx.voting
+          .submitVote(encryptedBytes, signatureBytes)
+          .signAndSend(account, (result: any) => {
+            console.log("📡 Tx status:", result.status.toString());
+
+            // FIX 2: Decode dispatchError and surface it to the user via onNotify
+            if (result.dispatchError) {
+              let msg = "Transaction failed";
+              if (result.dispatchError.isModule) {
+                try {
+                  const decoded = api.registry.findMetaError(
+                    result.dispatchError.asModule
+                  );
+                  msg = `${decoded.section}.${decoded.name}: ${decoded.docs.join(" ")}`;
+                } catch {
+                  msg = "Module dispatch error";
+                }
+              } else {
+                msg = result.dispatchError.toString();
+              }
+              console.error("❌ Vote dispatchError:", msg);
+              reject(new Error(msg));
+              return;
             }
-            setIsProcessing(false);
-          }
 
-          if (result.status.isInBlock) {
-            console.log("Included in block");
-          }
+            // FIX 3: isInBlock is sufficient — don't wait for isFinalized
+            if (result.status.isInBlock) {
+              console.log("✅ Vote in block:", result.status.asInBlock.toString());
+              resolve();
+            }
+          });
+      });
 
-          if (result.status.isFinalized) {
-            console.log("Finalized - Vote submitted successfully!");
-            setIsSubmitted(true);
-            setIsProcessing(false);
+      setIsSubmitted(true);
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 3000);
 
-            // Redirect to home after 3 seconds
-            setTimeout(() => {
-              window.location.href = "/"; // Change this to your home page route
-            }, 3000);
-          }
-        });
     } catch (error: any) {
       console.error("Failed to submit vote:", error);
-      onNotify(
-        "error",
-        "Failed to submit vote",
-        error?.message || "Please try again.",
-      );
+      onNotify("error", "Failed to submit vote", error?.message || "Please try again.");
+    } finally {
+      // FIX 4: Always reset in finally so button never stays stuck
       setIsProcessing(false);
     }
   };
 
-  // Success state after submission
   if (isSubmitted) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
@@ -629,7 +627,6 @@ const VoteProcessing: React.FC<{
   return (
     <div className="min-h-screen mt-3 flex items-center justify-center px-6">
       <div className="max-w-2xl w-full bg-white rounded-2xl shadow-2xl p-8">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-indigo-100 rounded-full mb-4">
             <svg
@@ -656,7 +653,6 @@ const VoteProcessing: React.FC<{
           </p>
         </div>
 
-        {/* Signature Status */}
         <div
           className={`rounded-xl p-6 border mb-6 ${
             verified
@@ -715,7 +711,6 @@ const VoteProcessing: React.FC<{
           )}
         </div>
 
-        {/* Action Button */}
         {!verified ? (
           <button
             onClick={verifyVote}
@@ -724,41 +719,16 @@ const VoteProcessing: React.FC<{
           >
             {isProcessing ? (
               <>
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 Verifying...
               </>
             ) : (
               <>
-                <svg
-                  className="w-6 h-6 mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
+                <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Verify Vote
               </>
@@ -772,99 +742,50 @@ const VoteProcessing: React.FC<{
           >
             {isProcessing ? (
               <>
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 Submitting to Blockchain...
               </>
             ) : (
               <>
-                <svg
-                  className="w-6 h-6 mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                  />
+                <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
                 Submit to Blockchain
               </>
             )}
           </button>
         )}
-        {/* Encrypted Vote Details */}
+
         <div className="bg-black rounded-xl p-6 border border-gray-200 mt-2">
           <h3 className="font-semibold text-white mb-4 flex items-center">
-            <svg
-              className="w-5 h-5 mr-2 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-              />
+            <svg className="w-5 h-5 mr-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
             Encrypted Vote Data
           </h3>
           <div className="space-y-3">
             <div>
-              <label className="text-xs text-gray-500 block mb-1">
-                Encrypted Vote
-              </label>
+              <label className="text-xs text-gray-500 block mb-1">Encrypted Vote</label>
               <div className="bg-black rounded-lg p-3 border border-gray-200 font-mono text-xs text-green-400 break-all max-h-20 overflow-y-auto">
                 {payload?.encryptedVote || "Generating..."}
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">
-                Signature{" "}
-              </label>
+              <label className="text-xs text-gray-500 block mb-1">Signature</label>
               <div className="bg-black rounded-lg p-3 border border-gray-200 font-mono text-xs text-green-400 break-all max-h-20 overflow-y-auto">
                 {signature || "Not yet signed"}
               </div>
             </div>
           </div>
         </div>
-        {/* Security Note */}
+
         <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-start">
-            <svg
-              className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
+            <svg className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <p className="text-sm text-blue-800">
               Your vote is encrypted and anonymized using blind signature
@@ -880,23 +801,14 @@ const VoteProcessing: React.FC<{
 const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
   const [account, setAccount] = useState<any>(null);
   const [votes, setVotes] = useState<VotesByPosition | null>(null);
-  const [electionStatus, setElectionStatus] = useState<ElectionStatus | null>(
-    null,
-  );
+  const [electionStatus, setElectionStatus] = useState<ElectionStatus | null>(null);
   const [posts, setPosts] = useState<string[]>([]);
-  const [candidatesByPost, setCandidatesByPost] = useState<
-    Record<string, Candidate[]>
-  >({});
+  const [candidatesByPost, setCandidatesByPost] = useState<Record<string, Candidate[]>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notices, setNotices] = useState<NoticeItem[]>([]);
 
-  const pushNotice = (
-    kind: NoticeKind,
-    title: string,
-    message?: string,
-    timeout = 5000,
-  ) => {
+  const pushNotice = (kind: NoticeKind, title: string, message?: string, timeout = 5000) => {
     const id = Date.now() + Math.floor(Math.random() * 1000);
     setNotices((prev) => [...prev, { id, kind, title, message }]);
     window.setTimeout(() => {
@@ -915,21 +827,12 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
 
       try {
         const [statusRes, candidatesRes] = await Promise.all([
-          fetch("http://127.0.0.1:8000/voting/election/status/", {
-            credentials: "include",
-          }),
-          fetch("http://127.0.0.1:8000/voting/election/candidates/", {
-            credentials: "include",
-          }),
+          fetch("http://127.0.0.1:8000/voting/election/status/", { credentials: "include" }),
+          fetch("http://127.0.0.1:8000/voting/election/candidates/", { credentials: "include" }),
         ]);
 
-        if (!statusRes.ok) {
-          throw new Error("Failed to fetch election status");
-        }
-
-        if (!candidatesRes.ok) {
-          throw new Error("Failed to fetch candidates");
-        }
+        if (!statusRes.ok) throw new Error("Failed to fetch election status");
+        if (!candidatesRes.ok) throw new Error("Failed to fetch candidates");
 
         const statusData: ElectionStatus = await statusRes.json();
         const candidateData = await candidatesRes.json();
@@ -937,9 +840,8 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
         setElectionStatus(statusData);
         setPosts(
           (candidateData.posts || []).filter(
-            (post: string) =>
-              (candidateData.candidates?.[post] || []).length > 0,
-          ),
+            (post: string) => (candidateData.candidates?.[post] || []).length > 0
+          )
         );
         setCandidatesByPost(candidateData.candidates || {});
       } catch (error: any) {
@@ -973,9 +875,7 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
         <NotificationStack notices={notices} onDismiss={dismissNotice} />
         <div className="min-h-screen flex items-center justify-center px-4">
           <div className="max-w-lg w-full bg-white rounded-xl shadow-lg p-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">
-              Unable to Open Voting
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-3">Unable to Open Voting</h2>
             <p className="text-red-600">{loadError}</p>
           </div>
         </div>
@@ -990,9 +890,7 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
         <div className="min-h-screen flex items-center justify-center px-4">
           <div className="max-w-lg w-full bg-white rounded-xl shadow-lg p-8 text-center">
             <h2 className="text-2xl font-bold text-gray-800 mb-3">
-              {electionStatus?.status === "ended"
-                ? "Election Has Ended"
-                : "Election Not Started"}
+              {electionStatus?.status === "ended" ? "Election Has Ended" : "Election Not Started"}
             </h2>
             <p className="text-gray-600">
               {electionStatus?.status === "ended"
@@ -1011,12 +909,8 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
         <NotificationStack notices={notices} onDismiss={dismissNotice} />
         <div className="min-h-screen flex items-center justify-center px-4">
           <div className="max-w-lg w-full bg-white rounded-xl shadow-lg p-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">
-              Candidates Not Published
-            </h2>
-            <p className="text-gray-600">
-              Please contact admin. Candidate registration is incomplete.
-            </p>
+            <h2 className="text-2xl font-bold text-gray-800 mb-3">Candidates Not Published</h2>
+            <p className="text-gray-600">Please contact admin. Candidate registration is incomplete.</p>
           </div>
         </div>
       </>
