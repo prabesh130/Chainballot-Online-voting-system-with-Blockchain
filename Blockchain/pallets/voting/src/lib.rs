@@ -185,9 +185,9 @@ pub mod pallet {
             ensure!(!HasVoted::<T>::get(&voter), Error::<T>::AlreadyVoted);
 
             let nullifier_raw: Vec<u8> = blind_signature.iter().take(64).cloned().collect();
-            let nullifier: BoundedVec<u8, ConstU32<64>> =
-                BoundedVec::try_from(nullifier_raw).map_err(|_| Error::<T>::BlindSignatureTooLarge)?;
-            ensure!(!UsedNullifiers::<T>::get(&nullifier), Error::<T>::NullifierAlreadyUsed);
+            // let nullifier: BoundedVec<u8, ConstU32<64>> =
+            //     BoundedVec::try_from(nullifier_raw).map_err(|_| Error::<T>::BlindSignatureTooLarge)?;
+            // ensure!(!UsedNullifiers::<T>::get(&nullifier), Error::<T>::NullifierAlreadyUsed);
 
             let bounded_vote = BoundedVec::try_from(encrypted_vote)
                 .map_err(|_| Error::<T>::EncryptedVoteTooLarge)?;
@@ -200,7 +200,7 @@ pub mod pallet {
                 blind_signature: bounded_signature,
             });
             VoteCounter::<T>::put(vote_id.saturating_add(1));
-            UsedNullifiers::<T>::insert(&nullifier, true);
+            // UsedNullifiers::<T>::insert(&nullifier, true);
             HasVoted::<T>::insert(&voter, true);
 
             Self::deposit_event(Event::VoteSubmitted { vote_id });

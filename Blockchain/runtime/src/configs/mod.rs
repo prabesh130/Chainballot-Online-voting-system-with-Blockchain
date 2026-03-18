@@ -173,7 +173,7 @@ impl pallet_voting::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type MaxEncryptedVoteSize = ConstU32<2048>;
     type MaxBlindSignatureSize = ConstU32<512>;
-	type MaxCandidates=MaxCandidates;
+	// type MaxCandidates=MaxCandidates;
 	type AdminOrigin=EnsureRoot<AccountId>;
-	type MaxCandidateNameLen=ConstU32<20>;
+	// type MaxCandidateNameLen=ConstU32<20>;
 }
