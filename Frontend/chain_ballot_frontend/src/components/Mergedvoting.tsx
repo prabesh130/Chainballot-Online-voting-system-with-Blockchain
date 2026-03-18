@@ -36,6 +36,7 @@ type BlindPayload = {
 };
 
 const DEFAULT_CANDIDATE_IMAGE = "src/assets/image/candidate.jpg";
+const SELECTED_CANDIDATE_BADGE_IMAGE = "/swastik.png";
 
 const PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0HSF4hLodHkn/eilWZd7
@@ -89,15 +90,17 @@ const MnemonicGate: React.FC<MnemonicGateProps> = ({ onImported }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="max-w-xl w-full bg-white rounded-xl shadow-lg p-6 space-y-4">
-        <h2 className="text-2xl font-bold">Import Voting Account</h2>
-        <p className="text-gray-600">
+    <div className="min-h-screen px-4 py-10">
+      <div className="mx-auto w-full max-w-2xl rounded-2xl border border-blue-200 bg-white p-6 shadow-lg md:p-8">
+        <h2 className="text-2xl font-bold text-blue-900">
+          Import Voting Account
+        </h2>
+        <p className="mt-2 text-slate-600">
           Enter the 12-word phrase sent by the admin
         </p>
         <textarea
-          className={`w-full border rounded-lg p-3 ${
-            error ? "border-red-500" : "border-gray-300"
+          className={`mt-4 w-full rounded-xl border p-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            error ? "border-red-500" : "border-blue-200"
           }`}
           rows={3}
           value={mnemonic}
@@ -108,14 +111,14 @@ const MnemonicGate: React.FC<MnemonicGateProps> = ({ onImported }) => {
           placeholder="Enter your 12-word recovery phrase..."
         />
         {error && (
-          <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-lg">
-            <p className="font-semibold">❌ {error}</p>
+          <div className="mt-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-700">
+            <p className="font-semibold">{error}</p>
           </div>
         )}
         <button
           onClick={importAccount}
           disabled={isLoading || !mnemonic.trim()}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+          className="mt-5 w-full rounded-xl bg-blue-700 py-3 font-semibold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           {isLoading ? "Verifying..." : "Continue to Voting"}
         </button>
@@ -136,17 +139,26 @@ const VotingPortal: React.FC<{
   const getCandidateVoteId = (candidate: Candidate) =>
     candidate.candidate_id ?? candidate.id;
 
+  const getSelectedCandidateForPost = (post: string) => {
+    const selectedId = votes[post];
+    if (!selectedId) return null;
+    return (candidatesByPost[post] || []).find(
+      (candidate) => getCandidateVoteId(candidate) === selectedId,
+    );
+  };
+
   const currentPos = posts[step];
   const allVotesSelected = posts.every((p) => votes[p]);
+  const selectedCount = posts.filter((post) => votes[post]).length;
 
   if (!currentPos) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="max-w-lg w-full bg-white rounded-xl shadow-lg p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+      <div className="min-h-screen px-4 py-10">
+        <div className="mx-auto w-full max-w-xl rounded-2xl border border-blue-200 bg-white p-8 text-center shadow-lg">
+          <h2 className="mb-2 text-2xl font-bold text-blue-900">
             No Candidates Available
           </h2>
-          <p className="text-gray-600">
+          <p className="text-slate-600">
             Election admin has not registered candidates yet.
           </p>
         </div>
@@ -162,12 +174,12 @@ const VotingPortal: React.FC<{
 
   if (showSummary && allVotesSelected) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6 py-12">
-        <div className="max-w-3xl w-full bg-white rounded-2xl shadow-2xl p-8">
+      <div className="min-h-screen px-4 py-10 md:px-6">
+        <div className="mx-auto w-full max-w-5xl rounded-2xl border border-blue-200 bg-white p-6 shadow-xl md:p-8">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
+            <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
               <svg
-                className="w-10 h-10 text-green-600"
+                className="h-8 w-8 text-red-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -180,18 +192,18 @@ const VotingPortal: React.FC<{
                 />
               </svg>
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent mb-2">
+            <h1 className="mb-2 text-3xl font-bold text-blue-900 md:text-4xl">
               Vote Summary
             </h1>
-            <p className="text-gray-600">
+            <p className="text-slate-600">
               Review your selections before proceeding
             </p>
           </div>
 
-          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6 border border-indigo-100 mb-6">
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
+          <div className="mb-6 rounded-xl border border-blue-200 p-6">
+            <h3 className="mb-4 flex items-center font-semibold text-blue-900">
               <svg
-                className="w-5 h-5 mr-2 text-indigo-600"
+                className="mr-2 h-5 w-5 text-blue-700"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -207,6 +219,7 @@ const VotingPortal: React.FC<{
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {Object.entries(votes).map(([position, candidateId]) => {
+                const stepIndex = posts.indexOf(position);
                 const candidate = Object.values(candidatesByPost)
                   .flat()
                   .find((c) => getCandidateVoteId(c) === candidateId);
@@ -221,14 +234,25 @@ const VotingPortal: React.FC<{
                       className="w-12 h-12 rounded-full object-cover"
                     />
                     <div>
-                      <div className="text-gray-500 text-xs">{position}</div>
-                      <div className="font-medium text-gray-800">
+                      <div className="text-xs text-slate-500">{position}</div>
+                      <div className="font-medium text-slate-800 mb-1">
                         {candidate?.name}
                       </div>
                       {candidate?.candidate_id != null && (
-                        <div className="text-xs font-mono text-blue-600">
+                        <div className="text-xs font-mono text-red-700">
                           ID: {candidate.candidate_id}
                         </div>
+                      )}
+                      {stepIndex >= 0 && (
+                        <button
+                          onClick={() => {
+                            setStep(stepIndex);
+                            setShowSummary(false);
+                          }}
+                          className="mt-2 rounded-md border border-blue-300 px-2 py-1 text-xs font-medium text-blue-800 hover:bg-blue-50"
+                        >
+                          Edit this post
+                        </button>
                       )}
                     </div>
                   </div>
@@ -237,10 +261,10 @@ const VotingPortal: React.FC<{
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 mb-6">
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
+          <div className="mb-6 rounded-xl border border-blue-200 bg-white p-6">
+            <h3 className="mb-4 flex items-center font-semibold text-blue-900">
               <svg
-                className="w-5 h-5 mr-2 text-gray-600"
+                className="mr-2 h-5 w-5 text-blue-700"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -256,20 +280,20 @@ const VotingPortal: React.FC<{
             </h3>
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-gray-500 block mb-1">
+                <label className="mb-1 block text-xs text-slate-500">
                   Encrypted Vote
                 </label>
-                <div className="bg-white rounded-lg p-3 border border-gray-200 font-mono text-xs text-gray-600 break-all">
+                <div className="break-all rounded-lg border border-blue-200 p-3 font-mono text-xs text-slate-700">
                   {getEncryptedPreview()}
                 </div>
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">
+                <label className="mb-1 block text-xs text-slate-500">
                   Signature Status
                 </label>
-                <div className="bg-white rounded-lg p-3 border border-gray-200 flex items-center">
-                  <div className="w-3 h-3 bg-yellow-400 rounded-full mr-2"></div>
-                  <span className="text-sm text-gray-600">
+                <div className="flex items-center rounded-lg border border-blue-200 p-3">
+                  <div className="mr-2 h-3 w-3 rounded-full bg-red-600"></div>
+                  <span className="text-sm text-slate-700">
                     Not yet signed - Click "Proceed to Verification" to sign
                   </span>
                 </div>
@@ -280,13 +304,13 @@ const VotingPortal: React.FC<{
           <div className="flex gap-4">
             <button
               onClick={() => setShowSummary(false)}
-              className="flex-1 px-6 py-3 rounded-xl font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
+              className="flex-1 rounded-xl border border-blue-300 bg-white px-6 py-3 font-medium text-blue-800 transition-colors hover:bg-blue-50"
             >
               ← Edit Votes
             </button>
             <button
               onClick={() => onSubmit(votes as VotesByPosition)}
-              className="flex-1 px-8 py-3 rounded-xl font-medium bg-gradient-to-r from-indigo-600 to-blue-600 text-white hover:from-indigo-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all"
+              className="flex-1 rounded-xl bg-blue-700 px-8 py-3 font-medium text-white shadow hover:bg-red-600"
             >
               Proceed to Verification →
             </button>
@@ -297,18 +321,23 @@ const VotingPortal: React.FC<{
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
-      <div className="max-w-4xl w-full mb-8">
-        <div className="flex items-center justify-between mb-3">
+    <div className="min-h-screen px-4 py-8 md:px-6 md:py-10">
+      <div className="mx-auto mb-6 w-full max-w-5xl">
+        <div className="mb-2 flex items-center justify-between">
           {posts.map((pos, idx) => (
-            <div key={pos} className="flex items-center flex-1">
+            <button
+              type="button"
+              key={pos}
+              onClick={() => setStep(idx)}
+              className="flex items-center flex-1"
+            >
               <div className="flex flex-col items-center flex-1">
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-all ${
                     idx < step
-                      ? "bg-green-500 text-white"
+                      ? "bg-blue-700 text-white"
                       : idx === step
-                        ? "bg-indigo-600 text-white ring-4 ring-indigo-200"
+                        ? "bg-red-600 text-white ring-4 ring-red-100"
                         : "bg-gray-200 text-gray-500"
                   }`}
                 >
@@ -316,33 +345,56 @@ const VotingPortal: React.FC<{
                 </div>
                 <span
                   className={`text-xs mt-2 font-medium ${
-                    idx === step ? "text-indigo-600" : "text-gray-500"
+                    idx === step ? "text-red-700" : "text-gray-500"
                   }`}
                 >
                   {pos}
+                </span>
+                <span className="mt-1 text-[10px] text-slate-500">
+                  {votes[pos] ? "Chosen" : "Pending"}
                 </span>
               </div>
               {idx < posts.length - 1 && (
                 <div
                   className={`h-1 flex-1 mx-2 rounded transition-all ${
-                    idx < step ? "bg-green-500" : "bg-gray-200"
+                    idx < step ? "bg-blue-700" : "bg-gray-200"
                   }`}
                 />
               )}
-            </div>
+            </button>
           ))}
         </div>
       </div>
 
-      <div className="max-w-4xl w-full bg-white rounded-2xl shadow-2xl p-8">
+      <div className="mx-auto w-full max-w-5xl rounded-2xl border border-blue-200 bg-white p-6 shadow-lg md:p-8">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent mb-2">
+          <h1 className="mb-2 text-3xl font-bold text-blue-900 md:text-4xl">
             Vote for {currentPos}
           </h1>
-          <p className="text-gray-600">Select your preferred candidate</p>
+          <p className="text-slate-600">Select your preferred candidate</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+        <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-800">
+              Progress
+            </p>
+            <p className="text-sm text-slate-700">
+              {selectedCount}/{posts.length} posts selected
+            </p>
+          </div>
+          <div className="rounded-xl border border-blue-200 bg-white p-3 md:col-span-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-800">
+              Current Selection
+            </p>
+            <p className="text-sm text-slate-700">
+              {getSelectedCandidateForPost(currentPos)?.name ||
+                "No candidate selected for this post yet"}
+            </p>
+          </div>
+        </div>
+
+        <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
           {(candidatesByPost[currentPos] || []).map((c) => (
             <div
               key={c.id}
@@ -351,8 +403,8 @@ const VotingPortal: React.FC<{
               }
               className={`group cursor-pointer border-2 rounded-2xl p-6 text-center transition-all duration-300 hover:shadow-xl ${
                 votes[currentPos] === getCandidateVoteId(c)
-                  ? "border-indigo-600 bg-indigo-50 shadow-lg scale-105"
-                  : "border-gray-200 hover:border-indigo-300 bg-white"
+                  ? "border-red-500 bg-red-50 shadow-lg scale-[1.02]"
+                  : "border-blue-200 bg-white hover:border-blue-400 hover:-translate-y-0.5"
               }`}
             >
               <div className="relative inline-block mb-4">
@@ -361,25 +413,20 @@ const VotingPortal: React.FC<{
                   alt={c.name}
                   className={`w-32 h-32 rounded-full mx-auto object-cover transition-all duration-300 ${
                     votes[currentPos] === getCandidateVoteId(c)
-                      ? "ring-4 ring-indigo-400"
-                      : "group-hover:ring-4 group-hover:ring-indigo-200"
+                      ? "ring-4 ring-red-300"
+                      : "group-hover:ring-4 group-hover:ring-blue-200"
                   }`}
                 />
                 {votes[currentPos] === getCandidateVoteId(c) && (
-                  <div className="absolute -top-2 -right-2 bg-indigo-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg">
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={3}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
+                  <div className="absolute -top-2 -right-2 flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-white shadow-lg">
+                    <img
+                      src={SELECTED_CANDIDATE_BADGE_IMAGE}
+                      alt="Selected"
+                      className="h-8 w-8 rounded-full border border-white bg-white object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
                   </div>
                 )}
               </div>
@@ -387,7 +434,7 @@ const VotingPortal: React.FC<{
               <div
                 className={`mt-3 text-sm font-medium ${
                   votes[currentPos] === getCandidateVoteId(c)
-                    ? "text-indigo-600"
+                    ? "text-red-700"
                     : "text-gray-500"
                 }`}
               >
@@ -403,7 +450,7 @@ const VotingPortal: React.FC<{
           <button
             disabled={step === 0}
             onClick={() => setStep(step - 1)}
-            className="px-6 py-3 rounded-xl font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:hover:bg-gray-100"
+            className="rounded-xl border border-blue-300 bg-white px-6 py-3 font-medium text-blue-800 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             ← Previous
           </button>
@@ -412,7 +459,7 @@ const VotingPortal: React.FC<{
             <button
               disabled={!votes[currentPos]}
               onClick={() => setStep(step + 1)}
-              className="px-8 py-3 rounded-xl font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg hover:shadow-xl disabled:hover:bg-indigo-600"
+              className="rounded-xl bg-blue-700 px-8 py-3 font-medium text-white shadow transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Next →
             </button>
@@ -420,9 +467,9 @@ const VotingPortal: React.FC<{
             <button
               disabled={!allVotesSelected}
               onClick={() => setShowSummary(true)}
-              className="px-8 py-3 rounded-xl font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl disabled:hover:from-green-500"
+              className="rounded-xl bg-red-600 px-8 py-3 font-medium text-white shadow transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Review Vote ✓
+              Review Vote
             </button>
           )}
         </div>
@@ -442,6 +489,15 @@ const VoteProcessing: React.FC<{
   const [verified, setVerified] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const copyText = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      onNotify("success", `${label} copied`);
+    } catch {
+      onNotify("warning", "Copy failed", "Please copy manually.");
+    }
+  };
 
   useEffect(() => {
     const publicKey = forge.pki.publicKeyFromPem(PUBLIC_KEY_PEM);
@@ -549,7 +605,7 @@ const VoteProcessing: React.FC<{
       // signature is a hex string — hexToU8a is correct
       const signatureBytes = Array.from(hexToU8a(signature));
 
-      console.log("📤 Submitting vote to blockchain...");
+      console.log("Submitting vote to blockchain...");
       console.log("  encryptedBytes length:", encryptedBytes.length);
       console.log("  signatureBytes length:", signatureBytes.length);
 
@@ -557,7 +613,7 @@ const VoteProcessing: React.FC<{
         api.tx.voting
           .submitVote(encryptedBytes, signatureBytes)
           .signAndSend(account, (result: any) => {
-            console.log("📡 Tx status:", result.status.toString());
+            console.log("Tx status:", result.status.toString());
 
             // FIX 2: Decode dispatchError and surface it to the user via onNotify
             if (result.dispatchError) {
@@ -574,17 +630,14 @@ const VoteProcessing: React.FC<{
               } else {
                 msg = result.dispatchError.toString();
               }
-              console.error("❌ Vote dispatchError:", msg);
+              console.error("Vote dispatchError:", msg);
               reject(new Error(msg));
               return;
             }
 
             // FIX 3: isInBlock is sufficient — don't wait for isFinalized
             if (result.status.isInBlock) {
-              console.log(
-                "✅ Vote in block:",
-                result.status.asInBlock.toString(),
-              );
+              console.log("Vote in block:", result.status.asInBlock.toString());
               resolve();
             }
           });
@@ -609,11 +662,11 @@ const VoteProcessing: React.FC<{
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6">
-        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-2xl p-8 text-center">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-green-100 rounded-full mb-6">
+      <div className="min-h-screen px-4 py-10 md:px-6">
+        <div className="mx-auto w-full max-w-3xl rounded-2xl border border-blue-200 bg-white p-8 text-center shadow-xl">
+          <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-blue-100">
             <svg
-              className="w-14 h-14 text-green-600"
+              className="h-12 w-12 text-red-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -626,21 +679,21 @@ const VoteProcessing: React.FC<{
               />
             </svg>
           </div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-3">
+          <h2 className="mb-3 text-3xl font-bold text-blue-900">
             Vote Submitted Successfully!
           </h2>
-          <p className="text-gray-600 mb-4">
+          <p className="mb-4 text-slate-600">
             Your vote has been securely recorded on the blockchain
           </p>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-green-800">
+          <div className="mb-6 rounded-lg border border-blue-200 p-4">
+            <p className="text-sm text-blue-900">
               ✓ Vote encrypted and signed
               <br />
               ✓ Submitted to blockchain
               <br />✓ Transaction finalized
             </p>
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-slate-500">
             Redirecting to home page in a few seconds...
           </p>
         </div>
@@ -649,12 +702,12 @@ const VoteProcessing: React.FC<{
   }
 
   return (
-    <div className="min-h-screen mt-3 flex items-center justify-center px-6">
-      <div className="max-w-2xl w-full bg-white rounded-2xl shadow-2xl p-8">
+    <div className="min-h-screen px-4 py-8 md:px-6 md:py-10">
+      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-blue-200 bg-white p-6 shadow-xl md:p-8">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-indigo-100 rounded-full mb-4">
+          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
             <svg
-              className="w-10 h-10 text-indigo-600"
+              className="h-8 w-8 text-red-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -667,26 +720,53 @@ const VoteProcessing: React.FC<{
               />
             </svg>
           </div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-2">
+          <h2 className="mb-2 text-3xl font-bold text-blue-900">
             Vote Verification
           </h2>
-          <p className="text-gray-600">
+          <p className="text-slate-600">
             {!verified
               ? "Review encrypted vote and obtain signature"
               : "Signature obtained - Ready to submit to blockchain"}
           </p>
         </div>
 
+        <div className="mb-6 grid grid-cols-3 gap-2">
+          {[
+            {
+              label: "Verify",
+              active: !verified,
+              done: verified || isSubmitted,
+            },
+            {
+              label: "Submit",
+              active: verified && !isSubmitted,
+              done: isSubmitted,
+            },
+            { label: "Done", active: false, done: isSubmitted },
+          ].map((stage) => (
+            <div
+              key={stage.label}
+              className={`rounded-lg border px-3 py-2 text-center text-xs font-semibold ${
+                stage.done
+                  ? "border-blue-300 bg-blue-100 text-blue-900"
+                  : stage.active
+                    ? "border-red-300 bg-red-50 text-red-800"
+                    : "border-slate-200 bg-slate-50 text-slate-500"
+              }`}
+            >
+              {stage.label}
+            </div>
+          ))}
+        </div>
+
         <div
           className={`rounded-xl p-6 border mb-6 ${
-            verified
-              ? "bg-green-50 border-green-200"
-              : "bg-yellow-50 border-yellow-200"
+            verified ? "border-blue-300 " : "border-red-300 bg-red-50"
           }`}
         >
-          <h3 className="font-semibold text-gray-800 mb-3 flex items-center">
+          <h3 className="mb-3 flex items-center font-semibold text-blue-900">
             <svg
-              className="w-5 h-5 mr-2 text-gray-600"
+              className="mr-2 h-5 w-5 text-blue-700"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -702,13 +782,13 @@ const VoteProcessing: React.FC<{
           </h3>
           {verified && signature ? (
             <div>
-              <label className="text-xs text-gray-500 block mb-1">
+              <label className="mb-1 block text-xs text-slate-500">
                 Signature
               </label>
-              <div className="bg-white rounded-lg p-3 border border-gray-200 font-mono text-xs text-gray-600 break-all max-h-20 overflow-y-auto">
+              <div className="max-h-20 overflow-y-auto break-all rounded-lg border border-blue-200 bg-white p-3 font-mono text-xs text-slate-700">
                 {signature}
               </div>
-              <div className="flex items-center mt-3 text-green-700">
+              <div className="mt-3 flex items-center text-blue-800">
                 <svg
                   className="w-5 h-5 mr-2"
                   fill="none"
@@ -726,8 +806,8 @@ const VoteProcessing: React.FC<{
               </div>
             </div>
           ) : (
-            <div className="flex items-center text-yellow-700">
-              <div className="w-3 h-3 bg-yellow-400 rounded-full mr-2"></div>
+            <div className="flex items-center text-red-700">
+              <div className="mr-2 h-3 w-3 rounded-full bg-red-600"></div>
               <span className="text-sm">
                 No signature - Click "Verify Vote" to obtain signature
               </span>
@@ -739,7 +819,7 @@ const VoteProcessing: React.FC<{
           <button
             onClick={verifyVote}
             disabled={isProcessing || !payload}
-            className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 text-white py-4 rounded-xl font-semibold text-lg hover:from-indigo-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="flex w-full items-center justify-center rounded-xl bg-blue-700 py-4 text-lg font-semibold text-white shadow transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isProcessing ? (
               <>
@@ -787,7 +867,7 @@ const VoteProcessing: React.FC<{
           <button
             onClick={submitBlockchain}
             disabled={isProcessing}
-            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 rounded-xl font-semibold text-lg hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="flex w-full items-center justify-center rounded-xl bg-red-600 py-4 text-lg font-semibold text-white shadow transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isProcessing ? (
               <>
@@ -833,10 +913,10 @@ const VoteProcessing: React.FC<{
           </button>
         )}
 
-        <div className="bg-black rounded-xl p-6 border border-gray-200 mt-2">
-          <h3 className="font-semibold text-white mb-4 flex items-center">
+        <div className="mt-4 rounded-xl border border-blue-200 bg-blue-900 p-6">
+          <h3 className="mb-4 flex items-center font-semibold text-white">
             <svg
-              className="w-5 h-5 mr-2 text-white"
+              className="mr-2 h-5 w-5 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -852,28 +932,46 @@ const VoteProcessing: React.FC<{
           </h3>
           <div className="space-y-3">
             <div>
-              <label className="text-xs text-gray-500 block mb-1">
-                Encrypted Vote
-              </label>
-              <div className="bg-black rounded-lg p-3 border border-gray-200 font-mono text-xs text-green-400 break-all max-h-20 overflow-y-auto">
+              <div className="mb-1 flex items-center justify-between">
+                <label className="block text-xs text-blue-200">
+                  Encrypted Vote
+                </label>
+                <button
+                  onClick={() =>
+                    copyText(payload?.encryptedVote || "", "Encrypted vote")
+                  }
+                  disabled={!payload?.encryptedVote}
+                  className="rounded border border-blue-300 px-2 py-0.5 text-[10px] font-semibold text-blue-100 hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Copy
+                </button>
+              </div>
+              <div className="max-h-20 overflow-y-auto break-all rounded-lg border border-blue-500 bg-blue-950 p-3 font-mono text-xs text-white">
                 {payload?.encryptedVote || "Generating..."}
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">
-                Signature
-              </label>
-              <div className="bg-black rounded-lg p-3 border border-gray-200 font-mono text-xs text-green-400 break-all max-h-20 overflow-y-auto">
+              <div className="mb-1 flex items-center justify-between">
+                <label className="block text-xs text-blue-200">Signature</label>
+                <button
+                  onClick={() => copyText(signature || "", "Signature")}
+                  disabled={!signature}
+                  className="rounded border border-blue-300 px-2 py-0.5 text-[10px] font-semibold text-blue-100 hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Copy
+                </button>
+              </div>
+              <div className="max-h-20 overflow-y-auto break-all rounded-lg border border-blue-500 bg-blue-950 p-3 font-mono text-xs text-white">
                 {signature || "Not yet signed"}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
           <div className="flex items-start">
             <svg
-              className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0"
+              className="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-red-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -885,7 +983,7 @@ const VoteProcessing: React.FC<{
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <p className="text-sm text-blue-800">
+            <p className="text-sm text-red-800">
               Your vote is encrypted and anonymized using blind signature
               cryptography. No one can link your vote back to your identity.
             </p>
@@ -971,10 +1069,10 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
     return (
       <>
         <NotificationStack notices={notices} onDismiss={dismissNotice} />
-        <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="min-h-screen px-4 py-10">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading election details...</p>
+            <p className="text-blue-900">Loading election details...</p>
           </div>
         </div>
       </>
@@ -985,9 +1083,9 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
     return (
       <>
         <NotificationStack notices={notices} onDismiss={dismissNotice} />
-        <div className="min-h-screen flex items-center justify-center px-4">
-          <div className="max-w-lg w-full bg-white rounded-xl shadow-lg p-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">
+        <div className="min-h-screen px-4 py-10">
+          <div className="mx-auto w-full max-w-xl rounded-2xl border border-blue-200 bg-white p-8 text-center shadow-lg">
+            <h2 className="mb-3 text-2xl font-bold text-blue-900">
               Unable to Open Voting
             </h2>
             <p className="text-red-600">{loadError}</p>
@@ -1001,14 +1099,14 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
     return (
       <>
         <NotificationStack notices={notices} onDismiss={dismissNotice} />
-        <div className="min-h-screen flex items-center justify-center px-4">
-          <div className="max-w-lg w-full bg-white rounded-xl shadow-lg p-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">
+        <div className="min-h-screen px-4 py-10">
+          <div className="mx-auto w-full max-w-xl rounded-2xl border border-blue-200 bg-white p-8 text-center shadow-lg">
+            <h2 className="mb-3 text-2xl font-bold text-blue-900">
               {electionStatus?.status === "ended"
                 ? "Election Has Ended"
                 : "Election Not Started"}
             </h2>
-            <p className="text-gray-600">
+            <p className="text-slate-600">
               {electionStatus?.status === "ended"
                 ? "Voting is now closed. Thank you for participating."
                 : "Voting will open once the admin starts the election."}
@@ -1023,12 +1121,12 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
     return (
       <>
         <NotificationStack notices={notices} onDismiss={dismissNotice} />
-        <div className="min-h-screen flex items-center justify-center px-4">
-          <div className="max-w-lg w-full bg-white rounded-xl shadow-lg p-8 text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">
+        <div className="min-h-screen px-4 py-10">
+          <div className="mx-auto w-full max-w-xl rounded-2xl border border-blue-200 bg-white p-8 text-center shadow-lg">
+            <h2 className="mb-3 text-2xl font-bold text-blue-900">
               Candidates Not Published
             </h2>
-            <p className="text-gray-600">
+            <p className="text-slate-600">
               Please contact admin. Candidate registration is incomplete.
             </p>
           </div>

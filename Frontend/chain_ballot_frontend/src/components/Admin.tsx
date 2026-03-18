@@ -1448,7 +1448,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="rounded-2xl bg-gradient-to-r from-sky-700 via-blue-700 to-indigo-700 p-8 text-white shadow-xl">
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold mb-2 tracking-tight">
                 Blockchain Voting Admin
@@ -1456,75 +1456,45 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               <p className="text-blue-100 text-sm md:text-base">
                 Complete election management dashboard
               </p>
+              <p className="text-blue-100/90 text-xs mt-2">
+                {connected
+                  ? `Chain: ${(api as any)?.runtimeVersion?.specName?.toString() || "Substrate"} | Phase: ${electionStatus?.blockchain_phase || "Unknown"}`
+                  : "Blockchain node is disconnected"}
+              </p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors font-semibold"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-
-        {/* Connection Status */}
-        <div
-          className={`rounded-xl p-4 border shadow-sm ${connected ? "bg-emerald-50 border-emerald-300" : "bg-rose-50 border-rose-300"}`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:items-end">
               <div
-                className={`w-3 h-3 rounded-full ${connected ? "bg-green-500" : "bg-red-500"} animate-pulse`}
-              />
-              <span className="font-semibold">
-                {connected ? "Blockchain Connected" : "Blockchain Disconnected"}
-              </span>
-            </div>
-            {!connected && (
-              <button
-                onClick={initApi}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm"
-              >
-                Reconnect
-              </button>
-            )}
-          </div>
-          {connected && api && (
-            <p className="text-xs text-gray-600 mt-2">
-              Chain:{" "}
-              {(api as any).runtimeVersion?.specName?.toString() || "Substrate"}{" "}
-              | Phase: {electionStatus?.blockchain_phase || "Unknown"}
-            </p>
-          )}
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="bg-white rounded-xl p-2 flex gap-2 border border-slate-200">
-          {(["accounts", "funding", "reveal", "results"] as const).map(
-            (tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                disabled={
-                  tab === "reveal" && electionStatus?.status !== "ended"
-                }
-                className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-colors ${
-                  activeTab === tab
-                    ? "bg-blue-600 text-white"
-                    : tab === "reveal" && electionStatus?.status !== "ended"
-                      ? "text-gray-400 cursor-not-allowed"
-                      : "text-gray-600 hover:bg-gray-100"
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                  connected
+                    ? "bg-emerald-100 text-emerald-900"
+                    : "bg-rose-100 text-rose-900"
                 }`}
               >
-                {tab === "accounts"
-                  ? "Register Candidates"
-                  : tab === "funding"
-                    ? "Account Funding"
-                    : tab === "reveal"
-                      ? "Reveal Votes"
-                      : "Results"}
-              </button>
-            ),
-          )}
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    connected ? "bg-emerald-500" : "bg-rose-500"
+                  }`}
+                />
+                {connected ? "Blockchain Connected" : "Blockchain Disconnected"}
+              </div>
+              <div className="flex items-center gap-2">
+                {!connected && (
+                  <button
+                    onClick={initApi}
+                    className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg transition-colors text-sm font-semibold"
+                  >
+                    Reconnect
+                  </button>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors font-semibold"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Election Status Bar */}
@@ -1599,6 +1569,36 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               Add at least one candidate for: {missingCandidatePosts.join(", ")}
               .
             </p>
+          )}
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-xl p-2 flex gap-2 border border-slate-200">
+          {(["accounts", "funding", "reveal", "results"] as const).map(
+            (tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                disabled={
+                  tab === "reveal" && electionStatus?.status !== "ended"
+                }
+                className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-colors ${
+                  activeTab === tab
+                    ? "bg-blue-600 text-white"
+                    : tab === "reveal" && electionStatus?.status !== "ended"
+                      ? "text-gray-400 cursor-not-allowed"
+                      : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                {tab === "accounts"
+                  ? "Register Candidates"
+                  : tab === "funding"
+                    ? "Account Funding"
+                    : tab === "reveal"
+                      ? "Reveal Votes"
+                      : "Results"}
+              </button>
+            ),
           )}
         </div>
 
