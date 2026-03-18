@@ -1,11 +1,17 @@
 // Admin.tsx - Admin login + Auto-generate blockchain accounts
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { Keyring } from "@polkadot/keyring";
 import { mnemonicGenerate } from "@polkadot/util-crypto";
 import { u8aToHex } from "@polkadot/util";
 import { QRCodeCanvas } from "qrcode.react";
+import {
+  ConfirmDialog,
+  type NoticeItem,
+  type NoticeKind,
+  NotificationStack,
+} from "./ui/feedback";
 
 type RegisteredVoter = {
   id: number;
@@ -21,6 +27,30 @@ type BlockchainAccount = RegisteredVoter & {
   publicKey: string;
   funded: boolean;
 };
+
+type ElectionStatus = {
+  status: "not_started" | "active" | "ended";
+  is_active: boolean;
+  started_at: string | null;
+  ended_at: string | null;
+};
+
+type AdminCandidate = {
+  id: number;
+  name: string;
+  post: string;
+  photo_url: string;
+  is_active: boolean;
+};
+
+const CANDIDATE_POSTS = [
+  "President",
+  "Vice President",
+  "Secretary",
+  "Vice Secretary",
+] as const;
+
+const DEFAULT_CANDIDATE_IMAGE = "src/assets/image/candidate.jpg";
 
 // ==================== ADMIN LOGIN COMPONENT ====================
 const AdminLogin: React.FC<{ onLoginSuccess: () => void }> = ({
@@ -62,17 +92,19 @@ const AdminLogin: React.FC<{ onLoginSuccess: () => void }> = ({
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center  p-4">
+    <div className="min-h-screen flex items-center justify-center bg-[radial-gradient(circle_at_top,_#dbeafe,_#f8fafc_45%)] p-4">
       <div className="max-w-md w-full">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="text-6xl mb-4">🔐</div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Login</h1>
-          <p className="text-gray-600">Blockchain Account Manager</p>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2 tracking-tight">
+            Admin Login
+          </h1>
+          <p className="text-slate-600">Blockchain Account Manager</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xl p-8">
           <form onSubmit={handleLogin} className="space-y-6">
             {/* Email Field */}
             <div>
@@ -148,23 +180,92 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [selected, setSelected] = useState<BlockchainAccount | null>(null);
   const [loading, setLoading] = useState(true);
   const [funding, setFunding] = useState(false);
+  const [electionStatus, setElectionStatus] = useState<ElectionStatus | null>(
+    null,
+  );
+  const [electionActionLoading, setElectionActionLoading] = useState(false);
+  const [candidates, setCandidates] = useState<AdminCandidate[]>([]);
+  const [candidateSubmitting, setCandidateSubmitting] = useState(false);
+  const [candidateForm, setCandidateForm] = useState<{
+    name: string;
+    post: string;
+    photo_url: string;
+  }>({
+    name: "",
+    post: CANDIDATE_POSTS[0],
+    photo_url: "",
+  });
   const [fundingProgress, setFundingProgress] = useState({
     current: 0,
     total: 0,
   });
+  const [notices, setNotices] = useState<NoticeItem[]>([]);
+  const [confirmState, setConfirmState] = useState({
+    open: false,
+    title: "",
+    message: "",
+    confirmLabel: "Confirm",
+  });
+  const confirmResolverRef = useRef<((accepted: boolean) => void) | null>(null);
 
   const [api, setApi] = useState<ApiPromise | null>(null);
   const [connected, setConnected] = useState(false);
 
   const feeAmount = "1000000000000"; // 1 token
 
+  const pushNotice = (
+    kind: NoticeKind,
+    title: string,
+    message?: string,
+    timeout = 5000,
+  ) => {
+    const id = Date.now() + Math.floor(Math.random() * 1000);
+    setNotices((prev) => [...prev, { id, kind, title, message }]);
+
+    window.setTimeout(() => {
+      setNotices((prev) => prev.filter((notice) => notice.id !== id));
+    }, timeout);
+  };
+
+  const dismissNotice = (id: number) => {
+    setNotices((prev) => prev.filter((notice) => notice.id !== id));
+  };
+
+  const requestConfirmation = (
+    title: string,
+    message: string,
+    confirmLabel = "Confirm",
+  ) => {
+    return new Promise<boolean>((resolve) => {
+      confirmResolverRef.current = resolve;
+      setConfirmState({
+        open: true,
+        title,
+        message,
+        confirmLabel,
+      });
+    });
+  };
+
+  const resolveConfirmation = (accepted: boolean) => {
+    setConfirmState((prev) => ({ ...prev, open: false }));
+    if (confirmResolverRef.current) {
+      confirmResolverRef.current(accepted);
+      confirmResolverRef.current = null;
+    }
+  };
+
   useEffect(() => {
     initializeSystem();
   }, []);
 
   const initializeSystem = async () => {
-    await initApi();
-    await fetchAndGenerateAccounts();
+    await Promise.all([
+      initApi(),
+      fetchAndGenerateAccounts(),
+      fetchElectionStatus(),
+      fetchCandidates(),
+    ]);
   };
 
   const initApi = async () => {
@@ -181,13 +282,55 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       setConnected(true);
     } catch (err: any) {
       console.error("❌ Failed to connect to blockchain:", err);
-      alert(
-        `Blockchain connection failed: ${err.message}\n\nMake sure your node is running on ws://127.0.0.1:9944`,
+      pushNotice(
+        "error",
+        "Blockchain connection failed",
+        `${err.message}. Make sure your node is running on ws://127.0.0.1:9944.`,
       );
     }
   };
 
-  const fetchAndGenerateAccounts = async () => {
+  const fetchElectionStatus = async () => {
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/voting/election/status/",
+        {
+          credentials: "include",
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load election status");
+      }
+
+      const data: ElectionStatus = await response.json();
+      setElectionStatus(data);
+    } catch (error) {
+      console.error("Failed to fetch election status:", error);
+    }
+  };
+
+  const fetchCandidates = async () => {
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/voting/admin/candidates/",
+        {
+          credentials: "include",
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load candidates");
+      }
+
+      const data = await response.json();
+      setCandidates(data.candidates || []);
+    } catch (error) {
+      console.error("Failed to fetch candidates:", error);
+    }
+  };
+
+  const fetchAndGenerateAccounts = async (): Promise<BlockchainAccount[]> => {
     setLoading(true);
 
     try {
@@ -212,16 +355,36 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       if (registeredVoters.length === 0) {
         console.log("ℹ️ No registered voters yet");
         setAccounts([]);
+        localStorage.removeItem("blockchain_accounts");
         setLoading(false);
-        return;
+        return [];
       }
 
-      console.log("🔑 Generating blockchain accounts...");
+      console.log("🔑 Loading cached accounts and generating missing ones...");
       const keyring = new Keyring({ type: "sr25519" });
       const generatedAccounts: BlockchainAccount[] = [];
+      const cachedByRoll = new Map<string, BlockchainAccount>();
+
+      const cachedRaw = localStorage.getItem("blockchain_accounts");
+      if (cachedRaw) {
+        try {
+          const cachedAccounts: BlockchainAccount[] = JSON.parse(cachedRaw);
+          cachedAccounts.forEach((acc) => {
+            if (acc.roll && acc.mnemonic) {
+              cachedByRoll.set(acc.roll, acc);
+            }
+          });
+        } catch (error) {
+          console.warn(
+            "Could not parse cached accounts. Regenerating all.",
+            error,
+          );
+        }
+      }
 
       registeredVoters.forEach((voter, index) => {
-        const mnemonic = mnemonicGenerate(12);
+        const cached = cachedByRoll.get(voter.roll);
+        const mnemonic = cached?.mnemonic || mnemonicGenerate(12);
         const account = keyring.addFromUri(mnemonic);
 
         generatedAccounts.push({
@@ -229,7 +392,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
           mnemonic,
           address: account.address,
           publicKey: u8aToHex(account.publicKey),
-          funded: false,
+          funded: cached?.funded || false,
         });
 
         console.log(`  ${index + 1}. ${voter.name} → ${account.address}`);
@@ -245,35 +408,42 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         JSON.stringify(generatedAccounts),
       );
       console.log("💾 Accounts backed up to localStorage");
+      setLoading(false);
+      return generatedAccounts;
     } catch (error: any) {
       console.error("❌ Error:", error);
-      alert(`Error: ${error.message}`);
+      pushNotice("error", "Failed to load voter accounts", error.message);
+      setLoading(false);
+      return [];
     }
-
-    setLoading(false);
   };
 
   const fundAllAccounts = async () => {
     if (!api) {
-      alert("❌ Blockchain not connected!");
+      pushNotice("error", "Blockchain is not connected");
       return;
     }
 
     if (accounts.length === 0) {
-      alert("❌ No accounts to fund!");
+      pushNotice("warning", "No accounts available for funding");
       return;
     }
 
     const unfundedCount = accounts.filter((a) => !a.funded).length;
 
     if (unfundedCount === 0) {
-      alert("✅ All accounts are already funded!");
+      pushNotice("info", "All accounts are already funded");
       return;
     }
 
     const confirmMsg = `Fund ${unfundedCount} accounts?\n\nThis will transfer ${feeAmount} tokens to each account from Alice.\n\nTotal cost: ${BigInt(feeAmount) * BigInt(unfundedCount)} tokens`;
 
-    if (!confirm(confirmMsg)) {
+    const shouldFund = await requestConfirmation(
+      "Fund Accounts",
+      confirmMsg,
+      "Start Funding",
+    );
+    if (!shouldFund) {
       return;
     }
 
@@ -286,10 +456,10 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
       console.log("💰 Funding from Alice:", alice.address);
 
-      const { data: aliceBalance } = await api.query.system.account(
-        alice.address,
-      );
-      console.log("Alice balance:", aliceBalance.free.toString());
+      const aliceAccountInfo = await api.query.system.account(alice.address);
+      const aliceBalance =
+        (aliceAccountInfo as any).data?.free?.toString?.() || "0";
+      console.log("Alice balance:", aliceBalance);
 
       let successCount = 0;
       let currentProgress = 0;
@@ -353,8 +523,11 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       console.log(
         `\n🎉 Funding complete: ${successCount}/${unfundedCount} successful`,
       );
-      alert(
-        `✅ Funding Complete!\n\nSuccessfully funded: ${successCount}/${unfundedCount} accounts`,
+      pushNotice(
+        "success",
+        "Funding completed",
+        `Successfully funded ${successCount}/${unfundedCount} accounts.`,
+        7000,
       );
 
       const updatedAccounts = accounts.map((acc, idx) =>
@@ -366,7 +539,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       );
     } catch (error: any) {
       console.error("❌ Funding error:", error);
-      alert(`Error during funding: ${error.message}`);
+      pushNotice("error", "Funding failed", error.message);
     }
 
     setFunding(false);
@@ -375,7 +548,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
   const downloadJSON = () => {
     if (accounts.length === 0) {
-      alert("❌ No accounts to download!");
+      pushNotice("warning", "No accounts available for download");
       return;
     }
 
@@ -387,14 +560,16 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     link.download = `blockchain_accounts_${new Date().toISOString().split("T")[0]}.json`;
     link.click();
 
-    alert(
-      "✅ Downloaded!\n\n⚠️ Keep this file SECURE - it contains all mnemonics!",
+    pushNotice(
+      "success",
+      "JSON downloaded",
+      "Keep this file secure. It contains voter mnemonics.",
     );
   };
 
   const downloadCSV = () => {
     if (accounts.length === 0) {
-      alert("❌ No accounts to download!");
+      pushNotice("warning", "No accounts available for download");
       return;
     }
 
@@ -420,15 +595,23 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     link.download = `blockchain_accounts_${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
 
-    alert("✅ CSV Downloaded!");
+    pushNotice("success", "CSV downloaded");
   };
 
-  const copyText = (text: string, label: string = "Text") => {
-    navigator.clipboard.writeText(text);
-    alert(`✅ ${label} copied to clipboard!`);
+  const copyText = async (text: string, label: string = "Text") => {
+    try {
+      await navigator.clipboard.writeText(text);
+      pushNotice("success", `${label} copied`);
+    } catch (error) {
+      console.error("Clipboard copy failed:", error);
+      pushNotice("error", `Failed to copy ${label.toLowerCase()}`);
+    }
   };
 
-  const sendCredentialsEmail = async (account: BlockchainAccount) => {
+  const sendCredentialsForAccount = async (
+    account: BlockchainAccount,
+    silent: boolean,
+  ) => {
     try {
       const response = await fetch(
         "http://127.0.0.1:8000/voter/admin/send-credentials/",
@@ -448,49 +631,268 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       );
 
       if (response.ok) {
-        alert(`✅ Credentials sent to ${account.email}`);
+        if (!silent) {
+          pushNotice("success", "Credentials sent", account.email);
+        }
+        return true;
       } else {
-        alert(`❌ Failed to send email to ${account.email}`);
+        if (!silent) {
+          pushNotice("error", "Failed to send credentials", account.email);
+        }
+        return false;
       }
     } catch (error) {
       console.error("Email error:", error);
-      alert(`❌ Error sending email: ${error}`);
+      if (!silent) {
+        pushNotice("error", "Error sending credentials", String(error));
+      }
+      return false;
     }
   };
 
-  const refreshAccounts = () => {
-    if (
-      confirm(
-        "Refresh will regenerate all accounts and you will lose current mnemonics.\n\nAre you sure?",
-      )
-    ) {
+  const sendCredentialsEmail = async (account: BlockchainAccount) => {
+    await sendCredentialsForAccount(account, false);
+  };
+
+  const startElection = async () => {
+    if (electionStatus?.status === "active") {
+      pushNotice("info", "Election is already active");
+      return;
+    }
+
+    const shouldStart = await requestConfirmation(
+      "Start Election",
+      "This will reset vote signing state and immediately email all voter mnemonics.",
+      "Start Election",
+    );
+    if (!shouldStart) {
+      return;
+    }
+
+    setElectionActionLoading(true);
+
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/voting/admin/election/start/",
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to start election");
+      }
+
+      let accountsToSend = accounts;
+      if (accountsToSend.length === 0) {
+        accountsToSend = await fetchAndGenerateAccounts();
+      }
+
+      const results = await Promise.allSettled(
+        accountsToSend.map((account) =>
+          sendCredentialsForAccount(account, true),
+        ),
+      );
+
+      const sentCount = results.filter(
+        (result) => result.status === "fulfilled" && result.value,
+      ).length;
+      const failedCount = accountsToSend.length - sentCount;
+
+      await fetchElectionStatus();
+
+      pushNotice(
+        "success",
+        "Election started successfully",
+        `Credentials email summary - Sent: ${sentCount}, Failed: ${failedCount}`,
+        7000,
+      );
+    } catch (error: any) {
+      console.error("Start election error:", error);
+      pushNotice("error", "Unable to start election", error.message);
+    }
+
+    setElectionActionLoading(false);
+  };
+
+  const endElection = async () => {
+    if (electionStatus?.status !== "active") {
+      pushNotice("info", "Election is not active");
+      return;
+    }
+
+    const shouldEnd = await requestConfirmation(
+      "End Election",
+      "Voting will be blocked immediately.",
+      "End Election",
+    );
+    if (!shouldEnd) {
+      return;
+    }
+
+    setElectionActionLoading(true);
+
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/voting/admin/election/end/",
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to end election");
+      }
+
+      await fetchElectionStatus();
+      pushNotice("success", "Election ended", "Voting is now closed.");
+    } catch (error: any) {
+      console.error("End election error:", error);
+      pushNotice("error", "Unable to end election", error.message);
+    }
+
+    setElectionActionLoading(false);
+  };
+
+  const registerCandidate = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!candidateForm.name.trim()) {
+      pushNotice("warning", "Candidate name is required");
+      return;
+    }
+
+    setCandidateSubmitting(true);
+
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/voting/admin/candidates/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            name: candidateForm.name.trim(),
+            post: candidateForm.post,
+            photo_url: candidateForm.photo_url.trim(),
+          }),
+        },
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to register candidate");
+      }
+
+      setCandidateForm((prev) => ({ ...prev, name: "", photo_url: "" }));
+      await fetchCandidates();
+      pushNotice("success", "Candidate registered successfully");
+    } catch (error: any) {
+      console.error("Candidate registration error:", error);
+      pushNotice("error", "Unable to register candidate", error.message);
+    }
+
+    setCandidateSubmitting(false);
+  };
+
+  const removeCandidate = async (
+    candidateId: number,
+    candidateName: string,
+  ) => {
+    const shouldRemove = await requestConfirmation(
+      "Remove Candidate",
+      `Remove ${candidateName} from candidate list?`,
+      "Remove",
+    );
+    if (!shouldRemove) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/voting/admin/candidates/${candidateId}/delete/`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to remove candidate");
+      }
+
+      await fetchCandidates();
+    } catch (error: any) {
+      console.error("Candidate delete error:", error);
+      pushNotice("error", "Unable to remove candidate", error.message);
+    }
+  };
+
+  const refreshAccounts = async () => {
+    if (electionStatus?.status === "active") {
+      pushNotice(
+        "warning",
+        "Cannot regenerate accounts while election is active",
+      );
+      return;
+    }
+
+    const shouldRefresh = await requestConfirmation(
+      "Regenerate Accounts",
+      "This will regenerate all accounts and you will lose current mnemonics.",
+      "Regenerate",
+    );
+    if (shouldRefresh) {
       fetchAndGenerateAccounts();
     }
   };
 
   const handleLogout = async () => {
-    if (confirm("Are you sure you want to logout?")) {
-      try {
-        await fetch("http://127.0.0.1:8000/voter/admin/logout/", {
-          method: "POST",
-          credentials: "include",
-        });
-      } catch (err) {
-        console.error("Logout error:", err);
-      }
-      onLogout();
+    const shouldLogout = await requestConfirmation(
+      "Logout",
+      "Are you sure you want to logout?",
+      "Logout",
+    );
+    if (!shouldLogout) {
+      return;
     }
+
+    try {
+      await fetch("http://127.0.0.1:8000/voter/admin/logout/", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+
+    onLogout();
   };
+
+  const groupedCandidates = CANDIDATE_POSTS.reduce<
+    Record<string, AdminCandidate[]>
+  >((acc, post) => {
+    acc[post] = candidates.filter((candidate) => candidate.post === post);
+    return acc;
+  }, {});
+  const missingCandidatePosts = CANDIDATE_POSTS.filter(
+    (post) => !groupedCandidates[post]?.length,
+  );
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center  ">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-xl font-semibold text-gray-700">
+          <p className="text-xl font-semibold text-slate-700">
             Loading Dashboard...
           </p>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-slate-500 mt-2">
             Fetching voters and generating accounts
           </p>
         </div>
@@ -499,22 +901,32 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   }
 
   return (
-    <div className="min-h-screen p-6 md:p-10  ">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,_#e0f2fe,_#f8fafc_35%,_#f8fafc)] px-4 py-6 md:px-8 md:py-10">
+      <NotificationStack notices={notices} onDismiss={dismissNotice} />
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        onConfirm={() => resolveConfirmation(true)}
+        onCancel={() => resolveConfirmation(false)}
+      />
+
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header with Logout */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-900 rounded-xl shadow-lg p-8 mb-6 text-white">
+        <div className="rounded-2xl bg-gradient-to-r from-sky-700 via-blue-700 to-indigo-700 p-8 text-white shadow-xl">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-2">
+              <h1 className="text-3xl md:text-4xl font-bold mb-2 tracking-tight">
                 🔑 Blockchain Account Manager
               </h1>
-              <p className="text-blue-100">
+              <p className="text-blue-100 text-sm md:text-base">
                 Auto-generated blockchain accounts for registered voters
               </p>
             </div>
             <button
               onClick={handleLogout}
-              className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+              className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors font-semibold"
             >
               🚪 Logout
             </button>
@@ -523,10 +935,10 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
         {/* Connection Status */}
         <div
-          className={`p-4 rounded-lg mb-6 ${
+          className={`rounded-xl p-4 border shadow-sm ${
             connected
-              ? "bg-green-100 border-2 border-green-400"
-              : "bg-red-100 border-2 border-red-400"
+              ? "bg-emerald-50 border-emerald-300"
+              : "bg-rose-50 border-rose-300"
           }`}
         >
           <div className="flex items-center justify-between">
@@ -551,27 +963,219 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
           </div>
         </div>
 
+        {/* Election Controls */}
+        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-sm text-gray-500">Election Status</p>
+              <div className="mt-1 flex items-center gap-3">
+                <span
+                  className={`text-xs px-3 py-1 rounded-full font-semibold ${
+                    electionStatus?.status === "active"
+                      ? "bg-green-600 text-white"
+                      : electionStatus?.status === "ended"
+                        ? "bg-red-600 text-white"
+                        : "bg-gray-200 text-gray-700"
+                  }`}
+                >
+                  {electionStatus?.status === "active"
+                    ? "ACTIVE"
+                    : electionStatus?.status === "ended"
+                      ? "ENDED"
+                      : "NOT STARTED"}
+                </span>
+                <span className="text-xs text-gray-500">
+                  {electionStatus?.started_at
+                    ? `Started: ${new Date(electionStatus.started_at).toLocaleString()}`
+                    : "Election has not started yet"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={startElection}
+                disabled={
+                  electionActionLoading ||
+                  electionStatus?.status === "active" ||
+                  accounts.length === 0 ||
+                  missingCandidatePosts.length > 0
+                }
+                className="bg-emerald-600 text-white px-5 py-2 rounded-lg hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+              >
+                {electionActionLoading && electionStatus?.status !== "active"
+                  ? "Starting..."
+                  : "▶️ Start Election"}
+              </button>
+
+              <button
+                onClick={endElection}
+                disabled={
+                  electionActionLoading || electionStatus?.status !== "active"
+                }
+                className="bg-red-600 text-white px-5 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+              >
+                {electionActionLoading && electionStatus?.status === "active"
+                  ? "Ending..."
+                  : "⏹ End Election"}
+              </button>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-500 mt-3">
+            Starting election will immediately email 12-word mnemonic
+            credentials to all registered and verified voters.
+          </p>
+          {missingCandidatePosts.length > 0 && (
+            <p className="text-xs text-red-600 mt-2">
+              Add at least one candidate for: {missingCandidatePosts.join(", ")}
+              .
+            </p>
+          )}
+        </div>
+
+        {/* Candidate Registration */}
+        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">
+            🧑‍💼 Candidate Registration By Post
+          </h2>
+
+          <form
+            onSubmit={registerCandidate}
+            className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5"
+          >
+            <input
+              type="text"
+              value={candidateForm.name}
+              onChange={(e) =>
+                setCandidateForm((prev) => ({ ...prev, name: e.target.value }))
+              }
+              placeholder="Candidate name"
+              className="px-4 py-3 border border-gray-300 rounded-lg"
+              disabled={
+                candidateSubmitting || electionStatus?.status === "active"
+              }
+            />
+
+            <select
+              value={candidateForm.post}
+              onChange={(e) =>
+                setCandidateForm((prev) => ({ ...prev, post: e.target.value }))
+              }
+              className="px-4 py-3 border border-gray-300 rounded-lg"
+              disabled={
+                candidateSubmitting || electionStatus?.status === "active"
+              }
+            >
+              {CANDIDATE_POSTS.map((post) => (
+                <option key={post} value={post}>
+                  {post}
+                </option>
+              ))}
+            </select>
+
+            <input
+              type="url"
+              value={candidateForm.photo_url}
+              onChange={(e) =>
+                setCandidateForm((prev) => ({
+                  ...prev,
+                  photo_url: e.target.value,
+                }))
+              }
+              placeholder="Photo URL (optional)"
+              className="px-4 py-3 border border-gray-300 rounded-lg"
+              disabled={
+                candidateSubmitting || electionStatus?.status === "active"
+              }
+            />
+
+            <button
+              type="submit"
+              disabled={
+                candidateSubmitting ||
+                electionStatus?.status === "active" ||
+                !candidateForm.name.trim()
+              }
+              className="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+            >
+              {candidateSubmitting ? "Saving..." : "Add Candidate"}
+            </button>
+          </form>
+
+          {electionStatus?.status === "active" && (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-300 rounded-lg p-3 mb-4">
+              Election is active. Candidate changes are locked until the
+              election ends.
+            </p>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {CANDIDATE_POSTS.map((post) => (
+              <div key={post} className="border border-gray-200 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-700 mb-3">{post}</h3>
+
+                {groupedCandidates[post]?.length ? (
+                  <div className="space-y-2">
+                    {groupedCandidates[post].map((candidate) => (
+                      <div
+                        key={candidate.id}
+                        className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2"
+                      >
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={candidate.photo_url || DEFAULT_CANDIDATE_IMAGE}
+                            alt={candidate.name}
+                            className="w-10 h-10 rounded-full object-cover border border-gray-300"
+                          />
+                          <span className="font-medium text-gray-700">
+                            {candidate.name}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() =>
+                            removeCandidate(candidate.id, candidate.name)
+                          }
+                          disabled={electionStatus?.status === "active"}
+                          className="text-red-600 hover:text-red-700 text-sm font-semibold disabled:text-gray-400"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    No candidates registered.
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Stats Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-6 shadow-md border-l-4 border-blue-500">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 border-l-4 border-l-blue-500">
             <div className="text-3xl font-bold text-blue-600">
               {accounts.length}
             </div>
             <div className="text-sm text-gray-600 mt-1">Total Accounts</div>
           </div>
-          <div className="bg-white rounded-xl p-6 shadow-md border-l-4 border-green-500">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 border-l-4 border-l-green-500">
             <div className="text-3xl font-bold text-green-600">
               {accounts.filter((a) => a.funded).length}
             </div>
             <div className="text-sm text-gray-600 mt-1">Funded</div>
           </div>
-          <div className="bg-white rounded-xl p-6 shadow-md border-l-4 border-orange-500">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 border-l-4 border-l-orange-500">
             <div className="text-3xl font-bold text-orange-600">
               {accounts.filter((a) => !a.funded).length}
             </div>
             <div className="text-sm text-gray-600 mt-1">Pending Funding</div>
           </div>
-          <div className="bg-white rounded-xl p-6 shadow-md border-l-4 border-blue-500">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 border-l-4 border-l-blue-500">
             <div className="text-3xl font-bold text-blue-600">
               {accounts.filter((a) => a.funded).length > 0
                 ? Math.round(
@@ -587,7 +1191,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         </div>
 
         {/* Controls */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
           <div className="flex flex-wrap gap-3">
             <button
               onClick={fundAllAccounts}
@@ -630,7 +1234,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
             <button
               onClick={refreshAccounts}
-              disabled={loading}
+              disabled={loading || electionStatus?.status === "active"}
               className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium transition-colors"
             >
               🔄 Refresh
@@ -649,8 +1253,8 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                 </p>
                 <ul className="text-sm text-red-600 space-y-1 ml-5 list-disc">
                   <li>
-                    <strong>Download the JSON/CSV immediately</strong> -
-                    Accounts regenerate on refresh
+                    <strong>Start election only after final review</strong> -
+                    mnemonics are emailed automatically on start
                   </li>
                   <li>
                     <strong>Store files securely</strong> - They contain all
@@ -661,8 +1265,8 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                     with them can vote
                   </li>
                   <li>
-                    <strong>Send credentials individually</strong> - Use the
-                    modal to email each student
+                    <strong>Manual send is optional</strong> - Use the modal to
+                    resend a single student's credentials
                   </li>
                   <li>
                     <strong>Accounts in localStorage</strong> - Backup available

@@ -14,20 +14,6 @@ interface NewsItem {
   [key: string]: any;
 }
 
-function useCountdown(targetDate: Date) {
-  const [timeLeft, setTimeLeft] = useState(() => calculateTimeLeft(targetDate));
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft(targetDate));
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [targetDate]);
-
-  return timeLeft;
-}
-
 async function fetchElectionNews(): Promise<NewsItem[]> {
   const url =
     "https://newsdata.io/api/1/latest?country=np&apikey=pub_441242573cfc4e70afc9e75ee81374fc";
@@ -51,8 +37,8 @@ async function fetchElectionNews(): Promise<NewsItem[]> {
             (typeof cat === "string" && cat.toLowerCase() === "politics") ||
             cat.toLowerCase() === "political" ||
             cat.toLowerCase() === "election" ||
-            cat.toLowerCase() === "lifestyle" 
-            // cat.toLowerCase() === "top",
+            cat.toLowerCase() === "lifestyle",
+          // cat.toLowerCase() === "top",
         );
       }
 
@@ -61,7 +47,7 @@ async function fetchElectionNews(): Promise<NewsItem[]> {
           item.category.toLowerCase() === "politics" ||
           item.category.toLowerCase() === "political" ||
           item.category.toLowerCase() === "election" ||
-          item.category.toLowerCase() === "lifestyle" 
+          item.category.toLowerCase() === "lifestyle"
           // item.category.toLowerCase() === "top"
         );
       }
