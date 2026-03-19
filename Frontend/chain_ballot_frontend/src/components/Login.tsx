@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function Login() {
   const { login, verifyOtp } = useAuth();
@@ -94,10 +94,10 @@ export default function Login() {
                 Login
               </button>
               <p className="text-center text-gray-600 text-sm mt-4">
-                Don't have an account? <a href="/register" className="text-blue-600 hover:text-blue-800 font-medium">Sign Up</a>
+                Don't have an account? <Link to="/register" className="text-blue-600 hover:text-blue-800 font-medium">Sign Up</Link>
               </p>
               <p className="text-center text-gray-600 text-sm mt-2">
-                <a href="/admin" className="text-blue-600 hover:text-blue-800 font-medium">Admin Login</a>
+                <Link to="/admin" className="text-blue-600 hover:text-blue-800 font-medium">Admin Login</Link>
               </p>
             </form>
           )}
