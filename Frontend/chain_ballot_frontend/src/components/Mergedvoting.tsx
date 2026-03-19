@@ -35,6 +35,7 @@ type BlindPayload = {
   voteHash: string;
 };
 
+
 const DEFAULT_CANDIDATE_IMAGE = "src/assets/image/candidate.jpg";
 const SELECTED_CANDIDATE_BADGE_IMAGE = "/swastik.png";
 
@@ -51,7 +52,7 @@ hwIDAQAB
 type MnemonicGateProps = {
   onImported: (account: any) => void;
 };
-
+//account generation 
 const MnemonicGate: React.FC<MnemonicGateProps> = ({ onImported }) => {
   const [mnemonic, setMnemonic] = useState("");
   const [error, setError] = useState<string | null>(null);
