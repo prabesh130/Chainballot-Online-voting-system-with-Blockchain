@@ -710,10 +710,12 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [candidateSubmitting, setCandidateSubmitting] = useState(false);
   const [candidateForm, setCandidateForm] = useState<{
     name: string;
+    candidate_id: string;
     post: (typeof CANDIDATE_POSTS)[number];
     photo_url: string;
   }>({
     name: "",
+    candidate_id: "",
     post: CANDIDATE_POSTS[0],
     photo_url: "",
   });
@@ -893,10 +895,9 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const fetchAndGenerateAccounts = async (): Promise<BlockchainAccount[]> => {
     setLoading(true);
     try {
-      const response = await fetch(
-        getApiUrl("/voter/admin/verified-voters/"),
-        { credentials: "include" },
-      );
+      const response = await fetch(getApiUrl("/voter/admin/verified-voters/"), {
+        credentials: "include",
+      });
       if (!response.ok)
         throw new Error("Failed to fetch voters. Session may have expired.");
       const data = await response.json();
@@ -1035,6 +1036,11 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       pushNotice("warning", "Candidate name is required");
       return;
     }
+    const candidateId = Number.parseInt(candidateForm.candidate_id.trim(), 10);
+    if (!Number.isInteger(candidateId) || candidateId <= 0) {
+      pushNotice("warning", "Candidate ID must be a positive integer");
+      return;
+    }
     setCandidateSubmitting(true);
     try {
       const response = await fetch(getApiUrl("/voting/admin/candidates/"), {
@@ -1043,6 +1049,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         credentials: "include",
         body: JSON.stringify({
           name: candidateForm.name.trim(),
+          candidate_id: candidateId,
           post: candidateForm.post,
           photo_url: candidateForm.photo_url.trim() || DEFAULT_CANDIDATE_IMAGE,
         }),
@@ -1050,7 +1057,12 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       const data = await response.json();
       if (!response.ok)
         throw new Error(data.error || "Failed to register candidate");
-      setCandidateForm((prev) => ({ ...prev, name: "", photo_url: "" }));
+      setCandidateForm((prev) => ({
+        ...prev,
+        name: "",
+        candidate_id: "",
+        photo_url: "",
+      }));
       await fetchCandidates();
       pushNotice("success", "Candidate registered successfully");
     } catch (error: any) {
@@ -1136,10 +1148,10 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     setElectionActionLoading(true);
     try {
       await startElectionOnChain();
-      const response = await fetch(
-        getApiUrl("/voting/admin/election/start/"),
-        { method: "POST", credentials: "include" },
-      );
+      const response = await fetch(getApiUrl("/voting/admin/election/start/"), {
+        method: "POST",
+        credentials: "include",
+      });
       const data = await response.json();
       if (!response.ok)
         throw new Error(data.error || "Failed to start election in Django");
@@ -1203,10 +1215,10 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     setElectionActionLoading(true);
     try {
       await endElectionOnChain();
-      const response = await fetch(
-        getApiUrl("/voting/admin/election/end/"),
-        { method: "POST", credentials: "include" },
-      );
+      const response = await fetch(getApiUrl("/voting/admin/election/end/"), {
+        method: "POST",
+        credentials: "include",
+      });
       const data = await response.json();
       if (!response.ok)
         throw new Error(data.error || "Failed to end election in Django");
@@ -1612,7 +1624,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               </h2>
               <form
                 onSubmit={registerCandidate}
-                className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5"
+                className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-5"
               >
                 <input
                   type="text"
@@ -1624,6 +1636,23 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                     }))
                   }
                   placeholder="Candidate name"
+                  className="px-4 py-3 border border-gray-300 rounded-lg"
+                  disabled={
+                    candidateSubmitting || electionStatus?.status === "active"
+                  }
+                />
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={candidateForm.candidate_id}
+                  onChange={(e) =>
+                    setCandidateForm((prev) => ({
+                      ...prev,
+                      candidate_id: e.target.value,
+                    }))
+                  }
+                  placeholder="Candidate ID"
                   className="px-4 py-3 border border-gray-300 rounded-lg"
                   disabled={
                     candidateSubmitting || electionStatus?.status === "active"
@@ -1667,7 +1696,8 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                   disabled={
                     candidateSubmitting ||
                     electionStatus?.status === "active" ||
-                    !candidateForm.name.trim()
+                    !candidateForm.name.trim() ||
+                    !candidateForm.candidate_id.trim()
                   }
                   className="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
                 >
@@ -1703,6 +1733,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                 className="w-10 h-10 rounded-full object-cover border border-gray-300"
                               />
                               <span className="font-medium text-gray-700">
+                                [ID: {getChainCandidateId(candidate)}]{" "}
                                 {candidate.name}
                               </span>
                             </div>
