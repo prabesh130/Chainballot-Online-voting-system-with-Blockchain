@@ -133,7 +133,7 @@ function App() {
   const [api, setApi] = useState<ApiPromise | null>(null);
 
   useEffect(() => {
-    const provider = new WsProvider("wss://abc-def-ghi.trycloudflare.com");
+    const provider = new WsProvider("ws://127.0.0.1:9944");
     ApiPromise.create({ provider })
       .then((api) => {
         console.log("✅ Connected to blockchain");
