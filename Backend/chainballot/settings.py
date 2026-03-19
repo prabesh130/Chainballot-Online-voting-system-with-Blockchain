@@ -7,8 +7,8 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY')
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+DEBUG = False
+ALLOWED_HOSTS = ['https://chainballot-backend.vercel.app/']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -101,10 +101,12 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
+    "https://chainballot-online-voting.vercel.app",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:5173",
+    "https://chainballot-online-voting.vercel.app",
 ]
 
 

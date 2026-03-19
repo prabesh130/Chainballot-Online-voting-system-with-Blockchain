@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getApiUrl } from "../utils/api";
 
 const VoterRegister = () => {
   const [formData, setFormData] = useState({
@@ -45,7 +46,7 @@ const VoterRegister = () => {
     };
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/voter/register/", {
+      const res = await fetch(getApiUrl("/voter/register/"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

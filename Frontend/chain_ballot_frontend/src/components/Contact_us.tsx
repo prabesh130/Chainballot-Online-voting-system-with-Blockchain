@@ -1,5 +1,6 @@
 import { Card, CardContent } from "./Card";
 import { useState } from "react";
+import { getApiUrl } from "../utils/api";
 import Logo from "../assets/image/chain_ballot_logo_no_bg.png";
 
 export default function ContactUs() {
@@ -21,7 +22,7 @@ export default function ContactUs() {
     setLoading(true);
     console.log(form);
     try{
-      const response = await fetch("http://127.0.0.1:8000/contact/contact_us/", {
+      const response = await fetch(getApiUrl("/contact/contact_us/"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

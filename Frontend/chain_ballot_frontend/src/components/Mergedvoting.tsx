@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ApiPromise } from "@polkadot/api";
 import { Keyring } from "@polkadot/keyring";
 import { hexToU8a } from "@polkadot/util";
+import { getApiUrl } from "../utils/api";
 // FIX: removed unused stringToU8a import
 import forge from "node-forge";
 import {
@@ -479,7 +480,7 @@ const VoteProcessing: React.FC<{
 
     try {
       const res = await fetch(
-        "http://127.0.0.1:8000/voting/api/sign-blind-vote/",
+        getApiUrl("/voting/api/sign-blind-vote/"),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -520,7 +521,7 @@ const VoteProcessing: React.FC<{
 
     try {
       const electionRes = await fetch(
-        "http://127.0.0.1:8000/voting/election/status/",
+        getApiUrl("/voting/election/status/"),
         { credentials: "include" },
       );
       if (electionRes.ok) {
@@ -933,10 +934,10 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
 
       try {
         const [statusRes, candidatesRes] = await Promise.all([
-          fetch("http://127.0.0.1:8000/voting/election/status/", {
+          fetch(getApiUrl("/voting/election/status/"), {
             credentials: "include",
           }),
-          fetch("http://127.0.0.1:8000/voting/election/candidates/", {
+          fetch(getApiUrl("/voting/election/candidates/"), {
             credentials: "include",
           }),
         ]);

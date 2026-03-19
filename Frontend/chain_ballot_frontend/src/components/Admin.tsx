@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { Keyring } from "@polkadot/keyring";
 import { mnemonicGenerate, cryptoWaitReady } from "@polkadot/util-crypto";
+import { getApiUrl } from "../utils/api";
 import { u8aToHex } from "@polkadot/util";
 import forge from "node-forge";
 import { QRCodeCanvas } from "qrcode.react";
@@ -69,7 +70,6 @@ const DEFAULT_CANDIDATE_IMAGE = "src/assets/image/candidate.jpg";
 const FEE_AMOUNT = "1000000000000"; // 1 token
 const ALICE_SEED = "//Alice";
 const NODE_URL = "ws://127.0.0.1:9944";
-const API_BASE_URL = "http://127.0.0.1:8000";
 const getChainCandidateId = (candidate: AdminCandidate) =>
   candidate.candidate_id ?? candidate.id;
 
@@ -87,7 +87,7 @@ const AdminLogin: React.FC<{ onLoginSuccess: () => void }> = ({
     setError("");
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/voter/admin/login/`, {
+      const response = await fetch(getApiUrl("/voter/admin/login/"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -857,7 +857,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
   const fetchElectionStatus = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/voting/election/status/`, {
+      const response = await fetch(getApiUrl("/voting/election/status/"), {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to load election status");
@@ -879,7 +879,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
   const fetchCandidates = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/voting/admin/candidates/`, {
+      const response = await fetch(getApiUrl("/voting/admin/candidates/"), {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to load candidates");
@@ -894,7 +894,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/voter/admin/verified-voters/`,
+        getApiUrl("/voter/admin/verified-voters/"),
         { credentials: "include" },
       );
       if (!response.ok)
@@ -1037,7 +1037,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     }
     setCandidateSubmitting(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/voting/admin/candidates/`, {
+      const response = await fetch(getApiUrl("/voting/admin/candidates/"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -1137,7 +1137,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     try {
       await startElectionOnChain();
       const response = await fetch(
-        `${API_BASE_URL}/voting/admin/election/start/`,
+        getApiUrl("/voting/admin/election/start/"),
         { method: "POST", credentials: "include" },
       );
       const data = await response.json();
@@ -1204,7 +1204,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     try {
       await endElectionOnChain();
       const response = await fetch(
-        `${API_BASE_URL}/voting/admin/election/end/`,
+        getApiUrl("/voting/admin/election/end/"),
         { method: "POST", credentials: "include" },
       );
       const data = await response.json();
@@ -1235,7 +1235,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     if (!shouldRemove) return;
     try {
       const response = await fetch(
-        `${API_BASE_URL}/voting/admin/candidates/${candidateId}/delete/`,
+        getApiUrl(`/voting/admin/candidates/${candidateId}/delete/`),
         { method: "POST", credentials: "include" },
       );
       const data = await response.json();
@@ -1254,7 +1254,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   ) => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/voter/admin/send-credentials/`,
+        getApiUrl("/voter/admin/send-credentials/"),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1347,7 +1347,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     // Re-fetch election status fresh from server
     let isActive = false;
     try {
-      const response = await fetch(`${API_BASE_URL}/voting/election/status/`, {
+      const response = await fetch(getApiUrl("/voting/election/status/"), {
         credentials: "include",
       });
       if (response.ok) {
@@ -1398,7 +1398,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     );
     if (!shouldLogout) return;
     try {
-      await fetch(`${API_BASE_URL}/voter/admin/logout/`, {
+      await fetch(getApiUrl("/voter/admin/logout/"), {
         method: "POST",
         credentials: "include",
       });
@@ -2041,7 +2041,7 @@ const Admin: React.FC = () => {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/voter/admin/check-auth/`, {
+      const response = await fetch(getApiUrl("/voter/admin/check-auth/"), {
         credentials: "include",
       });
       if (response.ok) {

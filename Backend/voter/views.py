@@ -65,7 +65,7 @@ def voter_register(request):
             student=student
         )
 
-        verification_link = f"http://127.0.0.1:8000/voter/verify/{voter.verification_token}/"
+        verification_link = f"https://chainballot-backend.vercel.app/voter/verify/{voter.verification_token}/"
 
         email_error = None
         try:
