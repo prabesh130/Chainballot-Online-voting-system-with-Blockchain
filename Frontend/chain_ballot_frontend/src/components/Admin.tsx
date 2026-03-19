@@ -710,10 +710,12 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const [candidateSubmitting, setCandidateSubmitting] = useState(false);
   const [candidateForm, setCandidateForm] = useState<{
     name: string;
+    candidate_id: string;
     post: (typeof CANDIDATE_POSTS)[number];
     photo_url: string;
   }>({
     name: "",
+    candidate_id: "",
     post: CANDIDATE_POSTS[0],
     photo_url: "",
   });
@@ -893,10 +895,9 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const fetchAndGenerateAccounts = async (): Promise<BlockchainAccount[]> => {
     setLoading(true);
     try {
-      const response = await fetch(
-        getApiUrl("/voter/admin/verified-voters/"),
-        { credentials: "include" },
-      );
+      const response = await fetch(getApiUrl("/voter/admin/verified-voters/"), {
+        credentials: "include",
+      });
       if (!response.ok)
         throw new Error("Failed to fetch voters. Session may have expired.");
       const data = await response.json();
@@ -1035,6 +1036,11 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       pushNotice("warning", "Candidate name is required");
       return;
     }
+    const candidateId = Number.parseInt(candidateForm.candidate_id.trim(), 10);
+    if (!Number.isInteger(candidateId) || candidateId <= 0) {
+      pushNotice("warning", "Candidate ID must be a positive integer");
+      return;
+    }
     setCandidateSubmitting(true);
     try {
       const response = await fetch(getApiUrl("/voting/admin/candidates/"), {
@@ -1043,6 +1049,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         credentials: "include",
         body: JSON.stringify({
           name: candidateForm.name.trim(),
+          candidate_id: candidateId,
           post: candidateForm.post,
           photo_url: candidateForm.photo_url.trim() || DEFAULT_CANDIDATE_IMAGE,
         }),
@@ -1050,7 +1057,12 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       const data = await response.json();
       if (!response.ok)
         throw new Error(data.error || "Failed to register candidate");
-      setCandidateForm((prev) => ({ ...prev, name: "", photo_url: "" }));
+      setCandidateForm((prev) => ({
+        ...prev,
+        name: "",
+        candidate_id: "",
+        photo_url: "",
+      }));
       await fetchCandidates();
       pushNotice("success", "Candidate registered successfully");
     } catch (error: any) {
@@ -1136,10 +1148,10 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     setElectionActionLoading(true);
     try {
       await startElectionOnChain();
-      const response = await fetch(
-        getApiUrl("/voting/admin/election/start/"),
-        { method: "POST", credentials: "include" },
-      );
+      const response = await fetch(getApiUrl("/voting/admin/election/start/"), {
+        method: "POST",
+        credentials: "include",
+      });
       const data = await response.json();
       if (!response.ok)
         throw new Error(data.error || "Failed to start election in Django");
@@ -1203,10 +1215,10 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     setElectionActionLoading(true);
     try {
       await endElectionOnChain();
-      const response = await fetch(
-        getApiUrl("/voting/admin/election/end/"),
-        { method: "POST", credentials: "include" },
-      );
+      const response = await fetch(getApiUrl("/voting/admin/election/end/"), {
+        method: "POST",
+        credentials: "include",
+      });
       const data = await response.json();
       if (!response.ok)
         throw new Error(data.error || "Failed to end election in Django");
@@ -1448,7 +1460,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="rounded-2xl bg-gradient-to-r from-sky-700 via-blue-700 to-indigo-700 p-8 text-white shadow-xl">
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold mb-2 tracking-tight">
                 Blockchain Voting Admin
@@ -1456,75 +1468,45 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               <p className="text-blue-100 text-sm md:text-base">
                 Complete election management dashboard
               </p>
+              <p className="text-blue-100/90 text-xs mt-2">
+                {connected
+                  ? `Chain: ${(api as any)?.runtimeVersion?.specName?.toString() || "Substrate"} | Phase: ${electionStatus?.blockchain_phase || "Unknown"}`
+                  : "Blockchain node is disconnected"}
+              </p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors font-semibold"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-
-        {/* Connection Status */}
-        <div
-          className={`rounded-xl p-4 border shadow-sm ${connected ? "bg-emerald-50 border-emerald-300" : "bg-rose-50 border-rose-300"}`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:items-end">
               <div
-                className={`w-3 h-3 rounded-full ${connected ? "bg-green-500" : "bg-red-500"} animate-pulse`}
-              />
-              <span className="font-semibold">
-                {connected ? "Blockchain Connected" : "Blockchain Disconnected"}
-              </span>
-            </div>
-            {!connected && (
-              <button
-                onClick={initApi}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm"
-              >
-                Reconnect
-              </button>
-            )}
-          </div>
-          {connected && api && (
-            <p className="text-xs text-gray-600 mt-2">
-              Chain:{" "}
-              {(api as any).runtimeVersion?.specName?.toString() || "Substrate"}{" "}
-              | Phase: {electionStatus?.blockchain_phase || "Unknown"}
-            </p>
-          )}
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="bg-white rounded-xl p-2 flex gap-2 border border-slate-200">
-          {(["accounts", "funding", "reveal", "results"] as const).map(
-            (tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                disabled={
-                  tab === "reveal" && electionStatus?.status !== "ended"
-                }
-                className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-colors ${
-                  activeTab === tab
-                    ? "bg-blue-600 text-white"
-                    : tab === "reveal" && electionStatus?.status !== "ended"
-                      ? "text-gray-400 cursor-not-allowed"
-                      : "text-gray-600 hover:bg-gray-100"
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                  connected
+                    ? "bg-emerald-100 text-emerald-900"
+                    : "bg-rose-100 text-rose-900"
                 }`}
               >
-                {tab === "accounts"
-                  ? "Register Candidates"
-                  : tab === "funding"
-                    ? "Account Funding"
-                    : tab === "reveal"
-                      ? "Reveal Votes"
-                      : "Results"}
-              </button>
-            ),
-          )}
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    connected ? "bg-emerald-500" : "bg-rose-500"
+                  }`}
+                />
+                {connected ? "Blockchain Connected" : "Blockchain Disconnected"}
+              </div>
+              <div className="flex items-center gap-2">
+                {!connected && (
+                  <button
+                    onClick={initApi}
+                    className="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg transition-colors text-sm font-semibold"
+                  >
+                    Reconnect
+                  </button>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors font-semibold"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Election Status Bar */}
@@ -1602,6 +1584,36 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
           )}
         </div>
 
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-xl p-2 flex gap-2 border border-slate-200">
+          {(["accounts", "funding", "reveal", "results"] as const).map(
+            (tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                disabled={
+                  tab === "reveal" && electionStatus?.status !== "ended"
+                }
+                className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-colors ${
+                  activeTab === tab
+                    ? "bg-blue-600 text-white"
+                    : tab === "reveal" && electionStatus?.status !== "ended"
+                      ? "text-gray-400 cursor-not-allowed"
+                      : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                {tab === "accounts"
+                  ? "Register Candidates"
+                  : tab === "funding"
+                    ? "Account Funding"
+                    : tab === "reveal"
+                      ? "Reveal Votes"
+                      : "Results"}
+              </button>
+            ),
+          )}
+        </div>
+
         {/* Tab Content */}
         {activeTab === "accounts" && (
           <>
@@ -1612,7 +1624,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
               </h2>
               <form
                 onSubmit={registerCandidate}
-                className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5"
+                className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-5"
               >
                 <input
                   type="text"
@@ -1624,6 +1636,23 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                     }))
                   }
                   placeholder="Candidate name"
+                  className="px-4 py-3 border border-gray-300 rounded-lg"
+                  disabled={
+                    candidateSubmitting || electionStatus?.status === "active"
+                  }
+                />
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={candidateForm.candidate_id}
+                  onChange={(e) =>
+                    setCandidateForm((prev) => ({
+                      ...prev,
+                      candidate_id: e.target.value,
+                    }))
+                  }
+                  placeholder="Candidate ID"
                   className="px-4 py-3 border border-gray-300 rounded-lg"
                   disabled={
                     candidateSubmitting || electionStatus?.status === "active"
@@ -1667,7 +1696,8 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                   disabled={
                     candidateSubmitting ||
                     electionStatus?.status === "active" ||
-                    !candidateForm.name.trim()
+                    !candidateForm.name.trim() ||
+                    !candidateForm.candidate_id.trim()
                   }
                   className="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
                 >
@@ -1703,6 +1733,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
                                 className="w-10 h-10 rounded-full object-cover border border-gray-300"
                               />
                               <span className="font-medium text-gray-700">
+                                [ID: {getChainCandidateId(candidate)}]{" "}
                                 {candidate.name}
                               </span>
                             </div>

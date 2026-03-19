@@ -1,11 +1,12 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  CheckCircle2, 
-  AlertCircle, 
-  Info, 
-  AlertTriangle, 
-  X 
+import { createPortal } from "react-dom";
+import {
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 
 export type NoticeKind = "success" | "error" | "info" | "warning";
@@ -17,26 +18,30 @@ export type NoticeItem = {
   message?: string;
 };
 
-const noticeStyles: Record<NoticeKind, { container: string; icon: any; iconColor: string }> = {
-  success: { 
-    container: "border-emerald-100 bg-white text-emerald-900 shadow-emerald-100/50", 
+const noticeStyles: Record<
+  NoticeKind,
+  { container: string; icon: any; iconColor: string }
+> = {
+  success: {
+    container:
+      "border-emerald-100 bg-white text-emerald-900 shadow-emerald-100/50",
     icon: CheckCircle2,
-    iconColor: "text-emerald-500"
+    iconColor: "text-emerald-500",
   },
-  error: { 
-    container: "border-rose-100 bg-white text-rose-900 shadow-rose-100/50", 
+  error: {
+    container: "border-rose-100 bg-white text-rose-900 shadow-rose-100/50",
     icon: AlertCircle,
-    iconColor: "text-rose-500"
+    iconColor: "text-rose-500",
   },
-  info: { 
-    container: "border-blue-100 bg-white text-blue-900 shadow-blue-100/50", 
+  info: {
+    container: "border-blue-100 bg-white text-blue-900 shadow-blue-100/50",
     icon: Info,
-    iconColor: "text-blue-500"
+    iconColor: "text-blue-500",
   },
-  warning: { 
-    container: "border-amber-100 bg-white text-amber-900 shadow-amber-100/50", 
+  warning: {
+    container: "border-amber-100 bg-white text-amber-900 shadow-amber-100/50",
     icon: AlertTriangle,
-    iconColor: "text-amber-500"
+    iconColor: "text-amber-500",
   },
 };
 
@@ -48,7 +53,11 @@ export const NotificationStack: React.FC<{
     <div className="fixed top-4 right-4 z-[100] w-[92vw] max-w-sm space-y-3 pointer-events-none">
       <AnimatePresence mode="popLayout">
         {notices.map((notice) => {
-          const { container, icon: Icon, iconColor } = noticeStyles[notice.kind];
+          const {
+            container,
+            icon: Icon,
+            iconColor,
+          } = noticeStyles[notice.kind];
           return (
             <motion.div
               key={notice.id}
@@ -62,7 +71,9 @@ export const NotificationStack: React.FC<{
             >
               <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${iconColor}`} />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold tracking-tight">{notice.title}</p>
+                <p className="text-sm font-bold tracking-tight">
+                  {notice.title}
+                </p>
                 {notice.message && (
                   <p className="mt-1 text-xs leading-relaxed opacity-80 break-words">
                     {notice.message}
@@ -92,9 +103,11 @@ export const InlineAlert: React.FC<{
   className?: string;
 }> = ({ kind, title, message, className = "" }) => {
   const { container, icon: Icon, iconColor } = noticeStyles[kind];
-  
+
   return (
-    <div className={`rounded-xl border p-4 flex gap-3 ${container} ${className}`}>
+    <div
+      className={`rounded-xl border p-4 flex gap-3 ${container} ${className}`}
+    >
       <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${iconColor}`} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold tracking-tight">{title}</p>
@@ -127,50 +140,42 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  return (
-    <AnimatePresence>
-      {open && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[110] grid place-items-center p-4 sm:p-6">
+      <div
+        className="absolute inset-0 bg-slate-900/55 backdrop-blur-sm"
+        onClick={onCancel}
+      />
+      <div
+        className="relative w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl border border-slate-100"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+          {title}
+        </h3>
+        <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-600">
+          {message}
+        </p>
+        <div className="mt-8 flex justify-end gap-3">
+          <button
+            type="button"
             onClick={onCancel}
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="relative w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl border border-slate-100"
-            onClick={(e) => e.stopPropagation()}
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
           >
-            <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-              {title}
-            </h3>
-            <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-600">
-              {message}
-            </p>
-            <div className="mt-8 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-              >
-                {cancelLabel}
-              </button>
-              <button
-                type="button"
-                onClick={onConfirm}
-                className="flex-1 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
-              >
-                {confirmLabel}
-              </button>
-            </div>
-          </motion.div>
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
+          >
+            {confirmLabel}
+          </button>
         </div>
-      )}
-    </AnimatePresence>
+      </div>
+    </div>,
+    document.body,
   );
 };
-
