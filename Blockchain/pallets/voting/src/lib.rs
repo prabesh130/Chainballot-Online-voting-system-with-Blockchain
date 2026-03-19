@@ -31,6 +31,7 @@ pub mod pallet {
     pub struct EncryptedVote<T: Config> {
         pub encrypted_vote: BoundedVec<u8, T::MaxEncryptedVoteSize>,
         pub blind_signature: BoundedVec<u8, T::MaxBlindSignatureSize>,
+        pub vote_hash : BoundedVec<u8, ConstU32<32>>,
     }
 
     /// NotStarted → Voting → Ended → TallyComplete
@@ -129,6 +130,7 @@ pub mod pallet {
         VoteRevealed { vote_id: u32, candidate_id: u32 },
         TallyFinalized,
         ElectionReset,
+        VoteHahsMismatch {vote_id: u32}
     }
 
     // =========================================================
@@ -142,6 +144,7 @@ pub mod pallet {
         NullifierAlreadyUsed,
         VoteNotFound,
         WrongPhase,
+        VoteHashMismatch,
     }
 
     // =========================================================
@@ -179,6 +182,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             encrypted_vote: Vec<u8>,
             blind_signature: Vec<u8>,
+            hash:Vec<u8>,
         ) -> DispatchResult {
             let voter = ensure_signed(origin)?;
             ensure!(CurrentPhase::<T>::get() == ElectionPhase::Voting, Error::<T>::WrongPhase);
@@ -193,11 +197,13 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::EncryptedVoteTooLarge)?;
             let bounded_signature = BoundedVec::try_from(blind_signature)
                 .map_err(|_| Error::<T>::BlindSignatureTooLarge)?;
-
+            let bounded_hash: BoundedVec<u8, ConstU32<32>>=BoundedVec::try_from(vote_hash)
+                .map_err(|_| Error::<T>::VoteHashTooLarge)?;
             let vote_id = VoteCounter::<T>::get();
             EncryptedVotes::<T>::insert(vote_id, EncryptedVote::<T> {
                 encrypted_vote: bounded_vote,
                 blind_signature: bounded_signature,
+                vote_hash:bounded_hash,
             });
             VoteCounter::<T>::put(vote_id.saturating_add(1));
             // UsedNullifiers::<T>::insert(&nullifier, true);
@@ -215,14 +221,20 @@ pub mod pallet {
             origin: OriginFor<T>,
             vote_id: u32,
             candidate_id: u32,
+            revealed_vote_hash: Vec<u8>,
         ) -> DispatchResult {
             T::AdminOrigin::ensure_origin(origin)?;
             ensure!(CurrentPhase::<T>::get() == ElectionPhase::Ended, Error::<T>::WrongPhase);
             ensure!(EncryptedVotes::<T>::contains_key(vote_id), Error::<T>::VoteNotFound);
-
+             let provided_hash:BoundedVec<u8, ConstU32<32>>=
+                BoundedVec::try_form(revealed_vote_hash)
+                .map_err(|_| Error::<T>::VoteHashMismatchh)?;
+            ensure!(vote.vote_hash==provided_hash
+                    Error::<T>::VoteHasMismatch);
             EncryptedVotes::<T>::remove(vote_id);
             Tally::<T>::mutate(candidate_id, |count| *count = count.saturating_add(1));
             RevealedCount::<T>::mutate(|c| *c = c.saturating_add(1));
+           
 
             Self::deposit_event(Event::VoteRevealed { vote_id, candidate_id });
             Ok(())
