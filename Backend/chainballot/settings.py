@@ -115,10 +115,15 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 # Add these SESSION settings (add to your existing settings)
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'  # Changed from None
-SESSION_COOKIE_SECURE = False  # False for local development
-SESSION_COOKIE_DOMAIN = None  # Important for localhost
+# SESSION_COOKIE_HTTPONLY = True
+# SESSION_COOKIE_SAMESITE = 'Lax'  # Changed from None
+# SESSION_COOKIE_SECURE = False  # False for local development
+# SESSION_COOKIE_DOMAIN = None  # Important for localhost
+
+SESSION_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SECURE = True
 
 # Add these CSRF settings
 CSRF_COOKIE_HTTPONLY = False
