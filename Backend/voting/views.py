@@ -15,10 +15,18 @@ from voter.models import Voter
 from voting.models import BlindSignature, Candidate, ElectionState
 
 
-KEY_PATH = os.path.join(settings.BASE_DIR, "private_key.pem")
+# KEY_PATH = os.path.join(settings.BASE_DIR, "private_key.pem")
 
-with open(KEY_PATH, "rb") as f:
-    private_key = RSA.import_key(f.read())
+# with open(KEY_PATH, "rb") as f:
+#     private_key = RSA.import_key(f.read())
+
+
+private_key_str = os.getenv("PRIVATE_KEY")
+
+# Convert \n back to real newlines
+private_key_str = private_key_str.replace("\\n", "\n")
+
+private_key = RSA.import_key(private_key_str)
 
 
 def _require_admin(request):
