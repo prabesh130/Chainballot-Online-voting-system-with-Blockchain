@@ -1,4 +1,12 @@
 import React from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  CheckCircle2, 
+  AlertCircle, 
+  Info, 
+  AlertTriangle, 
+  X 
+} from "lucide-react";
 
 export type NoticeKind = "success" | "error" | "info" | "warning";
 
@@ -9,55 +17,93 @@ export type NoticeItem = {
   message?: string;
 };
 
-type NotificationStackProps = {
+const noticeStyles: Record<NoticeKind, { container: string; icon: any; iconColor: string }> = {
+  success: { 
+    container: "border-emerald-100 bg-white text-emerald-900 shadow-emerald-100/50", 
+    icon: CheckCircle2,
+    iconColor: "text-emerald-500"
+  },
+  error: { 
+    container: "border-rose-100 bg-white text-rose-900 shadow-rose-100/50", 
+    icon: AlertCircle,
+    iconColor: "text-rose-500"
+  },
+  info: { 
+    container: "border-blue-100 bg-white text-blue-900 shadow-blue-100/50", 
+    icon: Info,
+    iconColor: "text-blue-500"
+  },
+  warning: { 
+    container: "border-amber-100 bg-white text-amber-900 shadow-amber-100/50", 
+    icon: AlertTriangle,
+    iconColor: "text-amber-500"
+  },
+};
+
+export const NotificationStack: React.FC<{
   notices: NoticeItem[];
   onDismiss: (id: number) => void;
-};
-
-const noticeStyles: Record<NoticeKind, string> = {
-  success: "border-emerald-200 bg-emerald-50 text-emerald-900",
-  error: "border-rose-200 bg-rose-50 text-rose-900",
-  info: "border-blue-200 bg-blue-50 text-blue-900",
-  warning: "border-amber-200 bg-amber-50 text-amber-900",
-};
-
-export const NotificationStack: React.FC<NotificationStackProps> = ({
-  notices,
-  onDismiss,
-}) => {
-  if (!notices.length) {
-    return null;
-  }
-
+}> = ({ notices, onDismiss }) => {
   return (
-    <div className="fixed top-4 right-4 z-[70] w-[92vw] max-w-sm space-y-3">
-      {notices.map((notice) => (
-        <div
-          key={notice.id}
-          className={`rounded-xl border p-4 shadow-lg backdrop-blur-sm ${noticeStyles[notice.kind]}`}
-          role="status"
-          aria-live="polite"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold">{notice.title}</p>
-              {notice.message ? (
-                <p className="mt-1 text-xs leading-relaxed opacity-90">
-                  {notice.message}
-                </p>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={() => onDismiss(notice.id)}
-              className="rounded-md px-2 py-1 text-xs font-semibold hover:bg-black/5"
-              aria-label="Dismiss notification"
+    <div className="fixed top-4 right-4 z-[100] w-[92vw] max-w-sm space-y-3 pointer-events-none">
+      <AnimatePresence mode="popLayout">
+        {notices.map((notice) => {
+          const { container, icon: Icon, iconColor } = noticeStyles[notice.kind];
+          return (
+            <motion.div
+              key={notice.id}
+              layout
+              initial={{ opacity: 0, x: 50, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 20, scale: 0.95 }}
+              className={`pointer-events-auto rounded-2xl border p-4 shadow-xl backdrop-blur-md flex items-start gap-3 ${container}`}
+              role="status"
+              aria-live="polite"
             >
-              Close
-            </button>
-          </div>
-        </div>
-      ))}
+              <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${iconColor}`} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold tracking-tight">{notice.title}</p>
+                {notice.message && (
+                  <p className="mt-1 text-xs leading-relaxed opacity-80 break-words">
+                    {notice.message}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => onDismiss(notice.id)}
+                className="rounded-full p-1 hover:bg-slate-100 transition-colors shrink-0"
+                aria-label="Dismiss notification"
+              >
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export const InlineAlert: React.FC<{
+  kind: NoticeKind;
+  title: string;
+  message?: string;
+  className?: string;
+}> = ({ kind, title, message, className = "" }) => {
+  const { container, icon: Icon, iconColor } = noticeStyles[kind];
+  
+  return (
+    <div className={`rounded-xl border p-4 flex gap-3 ${container} ${className}`}>
+      <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${iconColor}`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold tracking-tight">{title}</p>
+        {message && (
+          <p className="mt-1 text-xs leading-relaxed opacity-80 break-words">
+            {message}
+          </p>
+        )}
+      </div>
     </div>
   );
 };
@@ -81,48 +127,50 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  if (!open) {
-    return null;
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 p-4"
-      onClick={onCancel}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-dialog-title"
-    >
-      <div
-        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3
-          id="confirm-dialog-title"
-          className="text-lg font-bold text-slate-800"
-        >
-          {title}
-        </h3>
-        <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-600">
-          {message}
-        </p>
-        <div className="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"
             onClick={onCancel}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            className="relative w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl border border-slate-100"
+            onClick={(e) => e.stopPropagation()}
           >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-          >
-            {confirmLabel}
-          </button>
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+              {title}
+            </h3>
+            <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-600">
+              {message}
+            </p>
+            <div className="mt-8 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                {cancelLabel}
+              </button>
+              <button
+                type="button"
+                onClick={onConfirm}
+                className="flex-1 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
+              >
+                {confirmLabel}
+              </button>
+            </div>
+          </motion.div>
         </div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 };
+

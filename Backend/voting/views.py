@@ -52,6 +52,7 @@ def list_candidates(request):
         by_post[candidate.post].append(
             {
                 "id": candidate.id,
+                "candidate_id": candidate.candidate_id,
                 "name": candidate.name,
                 "post": candidate.post,
                 "photo_url": candidate.photo_url,
@@ -141,6 +142,7 @@ def admin_candidates(request):
                 "candidates": [
                     {
                         "id": candidate.id,
+                        "candidate_id": candidate.candidate_id,
                         "name": candidate.name,
                         "post": candidate.post,
                         "photo_url": candidate.photo_url,
@@ -166,9 +168,23 @@ def admin_candidates(request):
     name = (data.get("name") or "").strip()
     post = (data.get("post") or "").strip()
     photo_url = (data.get("photo_url") or "").strip()
+    candidate_id_raw = data.get("candidate_id")
 
     if not name or not post:
         return JsonResponse({"error": "name and post are required"}, status=400)
+
+    # candidate_id must be provided and must be a positive integer
+    if candidate_id_raw is None or str(candidate_id_raw).strip() == "":
+        return JsonResponse({"error": "candidate_id is required"}, status=400)
+    try:
+        candidate_id = int(candidate_id_raw)
+        if candidate_id <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return JsonResponse({"error": "candidate_id must be a positive integer"}, status=400)
+
+    if Candidate.objects.filter(candidate_id=candidate_id).exists():
+        return JsonResponse({"error": "A candidate with this candidate_id already exists"}, status=409)
 
     allowed_posts = [choice[0] for choice in Candidate.POST_CHOICES]
     if post not in allowed_posts:
@@ -183,7 +199,7 @@ def admin_candidates(request):
     candidate, created = Candidate.objects.get_or_create(
         name=name,
         post=post,
-        defaults={"photo_url": photo_url},
+        defaults={"photo_url": photo_url, "candidate_id": candidate_id},
     )
 
     if not created:
@@ -197,6 +213,7 @@ def admin_candidates(request):
             "success": True,
             "candidate": {
                 "id": candidate.id,
+                "candidate_id": candidate.candidate_id,
                 "name": candidate.name,
                 "post": candidate.post,
                 "photo_url": candidate.photo_url,

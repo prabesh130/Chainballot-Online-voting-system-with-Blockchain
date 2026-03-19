@@ -9,6 +9,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.db import transaction
 from student.models import Student
 from voter.models import Voter, VoterOTP
 import random
@@ -44,27 +45,49 @@ def voter_register(request):
     if hasattr(student, "voter"):
         return JsonResponse({"error": "Already registered"}, status=400)
 
-    user = User.objects.create_user(
-        username=email,
-        email=email,
-        password=password,
-        is_staff=False,
-        is_superuser=False,
-    )
+    if User.objects.filter(username=email).exists() or User.objects.filter(email=email).exists():
+        return JsonResponse(
+            {"error": "A user with this email already exists. Please login or use a different email."},
+            status=400,
+        )
 
-    voter = Voter.objects.create(
-        user=user,
-        student=student
-    )
+    with transaction.atomic():
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            password=password,
+            is_staff=False,
+            is_superuser=False,
+        )
 
-    verification_link = f"http://127.0.0.1:8000/voter/verify/{voter.verification_token}/"
+        voter = Voter.objects.create(
+            user=user,
+            student=student
+        )
 
-    send_mail(
-        "Verify your voter account",
-        f"Click to verify:\n{verification_link}",
-        settings.DEFAULT_FROM_EMAIL,
-        [email],
-    )
+        verification_link = f"http://127.0.0.1:8000/voter/verify/{voter.verification_token}/"
+
+        email_error = None
+        try:
+            send_mail(
+                "Verify your voter account",
+                f"Click to verify:\n{verification_link}",
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            email_error = str(e)
+
+    if email_error:
+        return JsonResponse(
+            {
+                "message": "Registered, but verification email could not be sent.",
+                "email_error": email_error,
+                "verification_token": str(voter.verification_token),
+            },
+            status=201,
+        )
 
     return JsonResponse(
         {"message": "Registered. Check email to verify."},
@@ -175,7 +198,11 @@ def voter_logout(request):
 
 @login_required
 def voter_profile(request):
-    voter = request.user.voter
+    try:
+        voter = request.user.voter
+    except Voter.DoesNotExist:
+        return JsonResponse({"error": "Voter profile not found for user"}, status=404)
+
     return JsonResponse({
         "authenticated": True,
         "email": request.user.email,

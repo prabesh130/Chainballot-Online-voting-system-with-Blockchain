@@ -66,6 +66,8 @@ class Candidate(models.Model):
     photo_url = models.URLField(blank=True, default="")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Explicit candidate ID assigned by admin; used to link blockchain tally to this candidate
+    candidate_id = models.IntegerField(unique=True, null=True, blank=True)
 
     class Meta:
         ordering = ["post", "name"]
