@@ -2,6 +2,7 @@ import { Card, CardImage, CardContent } from "./Card";
 import { useEffect, useState } from "react";
 import LeftDecor from "../assets/image/vecto.png";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 // -------------------- Countdown Hook --------------------
 interface NewsItem {
@@ -93,6 +94,7 @@ function calculateTimeLeft(targetDate: Date) {
 export default function Home() {
   const electionStartDate = new Date("2026-02-06T09:00:00");
   const electionEndDate = new Date("2026-04-15T23:00:00"); // Assuming election ends at 5 PM
+  const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -147,7 +149,7 @@ export default function Home() {
       alert("You have already voted.");
       return;
     }
-    window.location.href = "/merged-voting";
+    navigate("/merged-voting");
   };
 
   return (
@@ -280,22 +282,28 @@ export default function Home() {
           <div className="grid md:grid-cols-2 mx-auto gap-6 max-w-sm md:max-w-5xl">
             {news.length > 0 ? (
               news.map((item, index) => (
-                <Card
+                <a
                   key={item.article_id ?? index}
-                  className="hover:shadow-xl cursor-pointer transition mt-10"
-                  onClick={() => window.open(item.link, "_blank")}
+                  href={item.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
                 >
-                  {item.image_url ? (
-                    <CardImage src={item.image_url} alt={item.title} />
-                  ) : (
-                    <CardImage src="/placeholder.png" alt="No image" />
-                  )}
+                  <Card className="hover:shadow-xl cursor-pointer transition mt-10">
+                    {item.image_url ? (
+                      <CardImage src={item.image_url} alt={item.title} />
+                    ) : (
+                      <CardImage src="/placeholder.png" alt="No image" />
+                    )}
 
-                  <CardContent className="p-6 space-y-3">
-                    <h3 className="font-medium text-lg">{item.title}</h3>
-                    <p className="text-sm text-gray-600">{item.description}</p>
-                  </CardContent>
-                </Card>
+                    <CardContent className="p-6 space-y-3">
+                      <h3 className="font-medium text-lg">{item.title}</h3>
+                      <p className="text-sm text-gray-600">
+                        {item.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </a>
               ))
             ) : (
               <div className="col-span-full text-center text-gray-500 py-12">
