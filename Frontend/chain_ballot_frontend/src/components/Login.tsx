@@ -93,6 +93,12 @@ export default function Login() {
               >
                 Login
               </button>
+              <p className="text-center text-gray-600 text-sm mt-4">
+                Don't have an account? <a href="/register" className="text-blue-600 hover:text-blue-800 font-medium">Sign Up</a>
+              </p>
+              <p className="text-center text-gray-600 text-sm mt-2">
+                <a href="/admin" className="text-blue-600 hover:text-blue-800 font-medium">Admin Login</a>
+              </p>
             </form>
           )}
 
