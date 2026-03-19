@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { getApiUrl } from "../utils/api";
 
 type LoginResult =
   | { success: true }
@@ -35,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       ?.split("=")[1];
   };
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/voter/csrf/", {
+    fetch(getApiUrl("/voter/csrf/"), {
       credentials: "include",
     });
   }, []);
@@ -43,7 +44,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch("http://127.0.0.1:8000/voter/profile/", {
+        const res = await fetch(getApiUrl("/voter/profile/"), {
           method: "GET",
           credentials: "include",
           headers: {
@@ -77,7 +78,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     password: string,
   ): Promise<LoginResult> => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/voter/login/", {
+      const res = await fetch(getApiUrl("/voter/login/"), {
         method: "POST",
         credentials: "include",
         headers: {
@@ -105,7 +106,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const verifyOtp = async (email: string, otp: string) => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/voter/verify-otp/", {
+      const res = await fetch(getApiUrl("/voter/verify-otp/"), {
         method: "POST",
         credentials: "include",
         headers: {
@@ -118,7 +119,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (!res.ok) return false;
 
       // ✅ Fetch profile AFTER OTP login
-      const profileRes = await fetch("http://127.0.0.1:8000/voter/profile/", {
+      const profileRes = await fetch(getApiUrl("/voter/profile/"), {
         credentials: "include",
       });
 
@@ -134,7 +135,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     try {
-      await fetch("http://127.0.0.1:8000/voter/logout/", {
+      await fetch(getApiUrl("/voter/logout/"), {
         method: "POST",
         credentials: "include",
         headers: {

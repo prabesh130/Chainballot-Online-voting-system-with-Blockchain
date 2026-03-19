@@ -8,7 +8,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = False
-ALLOWED_HOSTS = ['https://chainballot-backend.vercel.app/']
+ALLOWED_HOSTS = ['https://chainballot-backend.vercel.app',
+                 'chainballot-backend.vercel.app',
+                 'chainballot-backend-fbix0q6qy-prabesh-babu-adhikaris-projects.vercel.app',
+                 'https://chainballot-backend-fbix0q6qy-prabesh-babu-adhikaris-projects.vercel.app',
+                 ]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
