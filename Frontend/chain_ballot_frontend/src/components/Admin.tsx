@@ -67,11 +67,12 @@ const CANDIDATE_POSTS = [
   "Secretary",
   "Vice Secretary",
 ] as const;
+  
 
 const DEFAULT_CANDIDATE_IMAGE = "src/assets/image/candidate.jpg";
 const FEE_AMOUNT = "1000000000000"; // 1 token
 const ALICE_SEED = "//Alice";
-const NODE_URL = "wss://johnny-belfast-totally-agency.trycloudflare.com";
+const NODE_URL = (import.meta.env.VITE_POLKADOT_URL) || "ws://localhost:9944";
 const getChainCandidateId = (candidate: AdminCandidate) =>
   candidate.candidate_id ?? candidate.id;
 
