@@ -6,6 +6,7 @@ import { getApiUrl } from "../utils/api";
 import { u8aToHex } from "@polkadot/util";
 import forge from "node-forge";
 import { QRCodeCanvas } from "qrcode.react";
+import { hexToU8a } from "@polkadot/util";
 import {
   ConfirmDialog,
   type NoticeItem,
@@ -51,6 +52,7 @@ type EncryptedVote = {
   vote_id: number;
   encrypted_vote: string;
   blind_signature: string;
+  vote_hash:string;
 };
 
 type RevealProgress = {
@@ -249,7 +251,7 @@ const VoteRevealPanel: React.FC<{
         if (voteData && !voteData.isEmpty) {
           const encVote = voteData.encryptedVote ?? voteData.encrypted_vote;
           const blindSig = voteData.blindSignature ?? voteData.blind_signature;
-
+          const voteHash=voteData.voteHash?? voteData.vote_hash;
           votes.push({
             vote_id: i,
             encrypted_vote: encVote?.toHex
@@ -257,7 +259,10 @@ const VoteRevealPanel: React.FC<{
               : u8aToHex(encVote?.toU8a?.() ?? new Uint8Array()),
             blind_signature: blindSig?.toHex
               ? blindSig.toHex()
-              : u8aToHex(blindSig?.toU8a?.() ?? new Uint8Array()),
+       : u8aToHex(blindSig?.toU8a?.() ?? new Uint8Array()), 
+            vote_hash:voteHash?.toHex? voteHash.toHex():
+            u8aToHex(voteHash?.toU8a?.()?? new Uint8Array),
+
           });
         }
       }
@@ -305,11 +310,13 @@ const VoteRevealPanel: React.FC<{
       const keyring = new Keyring({ type: "sr25519" });
       await cryptoWaitReady();
       const alice = keyring.addFromUri(ALICE_SEED);
+      const VoteHashBytes=Array.from(hexToU8a(selectedVote.vote_hash));
 
       // CHANGED: wrap reveal_vote in sudo since AdminOrigin requires it
       const innerCall = api.tx.voting.revealVote(
         selectedVote.vote_id,
         parseInt(selectedCandidate),
+        VoteHashBytes,
       );
       const tx = api.tx.sudo.sudo(innerCall);
 
