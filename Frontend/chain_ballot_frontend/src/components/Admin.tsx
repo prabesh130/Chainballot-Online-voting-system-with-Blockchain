@@ -65,7 +65,7 @@ const CANDIDATE_POSTS = [
 const DEFAULT_CANDIDATE_IMAGE = "src/assets/image/candidate.jpg";
 const FEE_AMOUNT = "1000000000000"; // 1 token
 const ALICE_SEED = "//Alice";
-const NODE_URL = "ws://sim-apparently-usa-difficulty.trycloudflare.com/";
+const NODE_URL = import.meta.env.VITE_POLKADOT_URL;
 const getChainCandidateId = (candidate: AdminCandidate) =>
   candidate.candidate_id ?? candidate.id;
 

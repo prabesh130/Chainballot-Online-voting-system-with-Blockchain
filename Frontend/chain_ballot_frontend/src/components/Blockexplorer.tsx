@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 
-const NODE_URL = "ws://sim-apparently-usa-difficulty.trycloudflare.com/";
+const NODE_URL = import.meta.env.VITE_POLKADOT_URL || "ws://localhost:9944";
 
 // ==================== TYPES ====================
 type BlockEntry = {
