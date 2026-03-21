@@ -89,6 +89,9 @@ const NavBar: React.FC = () => {
             <Navlink to="/" onClick={closeMenu}>
               Home
             </Navlink>
+            <Navlink to="/results" onClick={closeMenu}>
+              Results
+            </Navlink>
             <Navlink to="/Guide" onClick={closeMenu}>
               Guide
             </Navlink>
@@ -152,6 +155,9 @@ const NavBar: React.FC = () => {
           <div className="flex flex-col mt-1 border rounded-3xl min-h-screen w-full items-center bg-gray-100 py-6 space-y-4">
             <Navlink to="/" onClick={closeMenu}>
               Home
+            </Navlink>
+            <Navlink to="/results" onClick={closeMenu}>
+              Results
             </Navlink>
             <Navlink to="/Guide" onClick={closeMenu}>
               Guide

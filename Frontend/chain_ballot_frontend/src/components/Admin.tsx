@@ -38,10 +38,9 @@ type ElectionStatus = {
   blockchain_phase: "NotStarted" | "Voting" | "Ended" | "TallyComplete" | null;
 };
 
-// CHANGED: removed blockchain_candidate_id - candidates are Django-only now
 type AdminCandidate = {
   id: number;
-  candidate_id: number | null; // explicit admin-assigned ID, shown during tallying
+  candidate_id: number | null;
   name: string;
   post: string;
   photo_url: string;
@@ -185,15 +184,16 @@ const VoteRevealPanel: React.FC<{
   candidates: AdminCandidate[];
   onRevealComplete: () => void;
 }> = ({ api, candidates, onRevealComplete }) => {
-  const [encryptedVotes, setEncryptedVotes] = useState<EncryptedVote[]>([]);
-  const [revealProgress, setRevealProgress] = useState<RevealProgress>({
-    total: 0,
-    revealed: 0,
-    current: 0,
-  });
+  const [pendingVotes, setPendingVotes] = useState<EncryptedVote[]>([]);
+  const [totalVotes, setTotalVotes] = useState(0);
+  const [revealedCount, setRevealedCount] = useState(0);
+  const [fetching, setFetching] = useState(false);
   const [revealing, setRevealing] = useState(false);
   const [selectedVote, setSelectedVote] = useState<EncryptedVote | null>(null);
-  const [selectedCandidate, setSelectedCandidate] = useState<string>("");
+  
+  // UPDATED: Now stores multiple selections as a Record (Key = Post, Value = Candidate ID)
+  const [selectedCandidates, setSelectedCandidates] = useState<Record<string, string>>({});
+  
   const [decryptedData, setDecryptedData] = useState<string>("");
   const [privateKey, setPrivateKey] = useState<string>("");
   const [showPrivateKeyInput, setShowPrivateKeyInput] = useState(false);
@@ -218,46 +218,50 @@ const VoteRevealPanel: React.FC<{
 
   const decryptVoteWithKey = (encryptedVote: string, key: string): string => {
     const encryptedHex = encryptedVote.trim().replace(/^0x/i, "");
-    if (!encryptedHex) {
-      throw new Error("Encrypted vote is empty");
-    }
-
+    if (!encryptedHex) throw new Error("Encrypted vote is empty");
     const privateKeyPem = key.trim();
-    if (!privateKeyPem) {
-      throw new Error("Private key is required");
-    }
-
+    if (!privateKeyPem) throw new Error("Private key is required");
     const rsaPrivateKey = forge.pki.privateKeyFromPem(privateKeyPem);
     const encryptedBytes = forge.util.hexToBytes(encryptedHex);
     const decryptedText = rsaPrivateKey.decrypt(encryptedBytes, "RSA-OAEP");
-    const parsed = JSON.parse(decryptedText);
-
-    return JSON.stringify(parsed);
+    return JSON.stringify(JSON.parse(decryptedText));
   };
 
-  const fetchEncryptedVotes = async () => {
+  const initialFetch = async () => {
     if (!api) return;
+    setFetching(true);
     try {
       let total = 0;
       if (api.query.voting.voteCounter) {
         total = ((await api.query.voting.voteCounter()) as any).toNumber();
       }
       console.log("Total votes on chain:", total);
+      setTotalVotes(total);
+
+      const alreadyRevealed = api.query.voting.revealedCount
+        ? ((await api.query.voting.revealedCount()) as any).toNumber()
+        : 0;
+      console.log("Already revealed on chain:", alreadyRevealed);
+      setRevealedCount(alreadyRevealed);
 
       const votes: EncryptedVote[] = [];
       for (let i = 0; i < total; i++) {
-        const voteOpt = await (api.query.voting.encryptedVotes as any)(i);
-        const voteData = voteOpt?.isSome ? voteOpt.unwrap() : voteOpt;
+        try {
+          const voteOpt = await (api.query.voting.encryptedVotes as any)(i);
+          const voteData = voteOpt?.isSome
+            ? voteOpt.unwrap()
+            : voteOpt?.isNone
+              ? null
+              : voteOpt;
 
-        if (voteData && !voteData.isEmpty) {
+          if (!voteData || voteData.isEmpty) continue;
+
           const encVote = voteData.encryptedVote ?? voteData.encrypted_vote;
           const blindSig = voteData.blindSignature ?? voteData.blind_signature;
           const voteHash=voteData.voteHash?? voteData.vote_hash;
           votes.push({
             vote_id: i,
-            encrypted_vote: encVote?.toHex
-              ? encVote.toHex()
-              : u8aToHex(encVote?.toU8a?.() ?? new Uint8Array()),
+            encrypted_vote: encHex,
             blind_signature: blindSig?.toHex
               ? blindSig.toHex()
        : u8aToHex(blindSig?.toU8a?.() ?? new Uint8Array()), 
@@ -265,24 +269,20 @@ const VoteRevealPanel: React.FC<{
             u8aToHex(voteHash?.toU8a?.()?? new Uint8Array),
 
           });
+        } catch (e) {
+          console.warn(`Failed to fetch vote slot ${i}:`, e);
         }
       }
 
-      console.log(`Fetched ${votes.length} votes`);
-      setEncryptedVotes(votes);
-
-      const revealedCount = api.query.voting.revealedCount
-        ? ((await api.query.voting.revealedCount()) as any).toNumber()
-        : 0;
-
-      setRevealProgress({
-        total: votes.length,
-        revealed: revealedCount,
-        current: 0,
-      });
+      console.log(`Fetched ${votes.length} votes from chain`);
+      const unrevealed = votes.filter((v) => v.vote_id >= alreadyRevealed);
+      console.log(`${unrevealed.length} unrevealed votes remaining`);
+      setPendingVotes(unrevealed);
     } catch (error) {
       console.error("Error fetching encrypted votes:", error);
       pushNotice("error", "Failed to fetch encrypted votes");
+    } finally {
+      setFetching(false);
     }
   };
 
@@ -305,7 +305,14 @@ const VoteRevealPanel: React.FC<{
   };
 
   const handleRevealVote = async () => {
-    if (!api || !selectedVote || !selectedCandidate) return;
+    // UPDATED: Extract only valid IDs into an array
+    const candidateIdsToCredit = Object.values(selectedCandidates)
+      .filter((id) => id !== "")
+      .map((id) => parseInt(id, 10));
+
+    if (!api || !selectedVote || candidateIdsToCredit.length === 0) return;
+    
+    const revealingVoteId = selectedVote.vote_id;
     try {
       setRevealing(true);
       const keyring = new Keyring({ type: "sr25519" });
@@ -313,7 +320,7 @@ const VoteRevealPanel: React.FC<{
       const alice = keyring.addFromUri(ALICE_SEED);
       const VoteHashBytes=Array.from(hexToU8a(selectedVote.vote_hash));
 
-      // CHANGED: wrap reveal_vote in sudo since AdminOrigin requires it
+      // UPDATED: Send array of candidate IDs
       const innerCall = api.tx.voting.revealVote(
         selectedVote.vote_id,
         parseInt(selectedCandidate),
@@ -342,16 +349,22 @@ const VoteRevealPanel: React.FC<{
             return;
           }
           if (result.status.isInBlock) {
-            pushNotice("success", `Vote #${selectedVote.vote_id} revealed`);
             resolve();
           }
         });
       });
 
-      await fetchEncryptedVotes();
-      setSelectedVote(null);
-      setSelectedCandidate("");
+      setPendingVotes((prev) => {
+        const next = prev.filter((v) => v.vote_id !== revealingVoteId);
+        setSelectedVote(next.length > 0 ? next[0] : null);
+        return next;
+      });
+      setRevealedCount((prev) => prev + 1);
+      
+      // Reset after successful transaction
+      setSelectedCandidates({});
       setDecryptedData("");
+      pushNotice("success", `Vote #${revealingVoteId} revealed successfully`);
       onRevealComplete();
     } catch (error: any) {
       pushNotice("error", "Failed to reveal vote", error.message);
@@ -366,8 +379,6 @@ const VoteRevealPanel: React.FC<{
       const keyring = new Keyring({ type: "sr25519" });
       await cryptoWaitReady();
       const alice = keyring.addFromUri(ALICE_SEED);
-
-      // CHANGED: wrap finalize_tally in sudo
       const innerCall = api.tx.voting.finalizeTally();
       const tx = api.tx.sudo.sudo(innerCall);
 
@@ -397,7 +408,6 @@ const VoteRevealPanel: React.FC<{
           }
         });
       });
-
       onRevealComplete();
     } catch (error: any) {
       pushNotice("error", "Failed to finalize tally", error.message);
@@ -405,9 +415,11 @@ const VoteRevealPanel: React.FC<{
   };
 
   useEffect(() => {
-    if (api) fetchEncryptedVotes();
+    if (api) initialFetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api]);
+
+  const allRevealed = totalVotes > 0 && revealedCount >= totalVotes;
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
@@ -416,22 +428,33 @@ const VoteRevealPanel: React.FC<{
         Vote Decryption and Reveal
       </h2>
 
-      {revealProgress.total > 0 && (
+      {fetching && (
+        <div className="flex items-center gap-3 mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
+          <span className="text-blue-700 text-sm font-medium">
+            Loading votes from blockchain...
+          </span>
+        </div>
+      )}
+
+      {totalVotes > 0 && (
         <div className="mb-6">
           <div className="flex justify-between text-sm text-gray-600 mb-2">
             <span>Reveal Progress</span>
             <span>
-              {revealProgress.revealed} / {revealProgress.total} votes
+              {revealedCount} / {totalVotes} votes revealed
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3">
             <div
-              className="bg-green-600 h-3 rounded-full transition-all"
-              style={{
-                width: `${(revealProgress.revealed / revealProgress.total) * 100}%`,
-              }}
+              className="bg-green-600 h-3 rounded-full transition-all duration-500"
+              style={{ width: `${(revealedCount / totalVotes) * 100}%` }}
             />
           </div>
+          <p className="text-xs text-gray-500 mt-1">
+            {pendingVotes.length} vote{pendingVotes.length !== 1 ? "s" : ""}{" "}
+            remaining
+          </p>
         </div>
       )}
 
@@ -461,24 +484,32 @@ const VoteRevealPanel: React.FC<{
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left: pending votes list */}
         <div>
           <h3 className="font-semibold text-gray-700 mb-3">
-            Encrypted Votes ({encryptedVotes.length})
+            Pending Votes ({pendingVotes.length})
           </h3>
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {encryptedVotes.length === 0 && (
+            {!fetching && pendingVotes.length === 0 && (
               <p className="text-sm text-gray-500 text-center py-8">
-                No votes found on chain
+                {totalVotes === 0
+                  ? "No votes found on chain"
+                  : "All votes have been revealed 🎉"}
               </p>
             )}
-            {encryptedVotes.map((vote) => (
+            {pendingVotes.map((vote) => (
               <div
                 key={vote.vote_id}
-                onClick={() => setSelectedVote(vote)}
+                onClick={() => {
+                  setSelectedVote(vote);
+                  setDecryptedData("");
+                  // UPDATED: Clear selections when switching votes
+                  setSelectedCandidates({});
+                }}
                 className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                   selectedVote?.vote_id === vote.vote_id
                     ? "bg-blue-50 border-blue-500"
-                    : "hover:bg-gray-50"
+                    : "hover:bg-gray-50 border-gray-200"
                 }`}
               >
                 <div className="flex justify-between items-center">
@@ -492,6 +523,7 @@ const VoteRevealPanel: React.FC<{
           </div>
         </div>
 
+        {/* Right: decrypt + reveal panel */}
         {selectedVote && (
           <div className="border-l pl-6">
             <h3 className="font-semibold text-gray-700 mb-3">
@@ -525,49 +557,89 @@ const VoteRevealPanel: React.FC<{
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Candidate to Credit
+                      Select Candidates to Credit
                     </label>
-                    <select
-                      value={selectedCandidate}
-                      onChange={(e) => setSelectedCandidate(e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-lg"
-                    >
-                      <option value="">Choose candidate...</option>
-                      {candidates.map((c) => (
-                        <option
-                          key={c.id}
-                          value={String(getChainCandidateId(c))}
-                        >
-                          [ID: {getChainCandidateId(c)}] {c.name} ({c.post})
-                        </option>
-                      ))}
-                    </select>
+                    
+                    {/* UPDATED: Dynamic list of dropdowns based on available posts */}
+                    <div className="space-y-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                      {CANDIDATE_POSTS.map((post) => {
+                        const candidatesForPost = candidates.filter((c) => c.post === post);
+                        if (candidatesForPost.length === 0) return null;
+
+                        return (
+                          <div key={post}>
+                            <label className="block text-xs font-semibold text-gray-600 mb-1">
+                              {post}
+                            </label>
+                            <select
+                              value={selectedCandidates[post] || ""}
+                              onChange={(e) =>
+                                setSelectedCandidates((prev) => ({
+                                  ...prev,
+                                  [post]: e.target.value,
+                                }))
+                              }
+                              className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                            >
+                              <option value="">Choose candidate...</option>
+                              {candidatesForPost.map((c) => (
+                                <option
+                                  key={c.id}
+                                  value={String(getChainCandidateId(c))}
+                                >
+                                  [ID: {getChainCandidateId(c)}] {c.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                   <button
                     onClick={handleRevealVote}
-                    disabled={!selectedCandidate || revealing}
-                    className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+                    // Disable if NO candidates have been selected at all, or if already revealing
+                    disabled={
+                      Object.values(selectedCandidates).filter((v) => v !== "").length === 0 || 
+                      revealing
+                    }
+                    className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center justify-center gap-2 mt-4"
                   >
-                    {revealing ? "Revealing..." : "Reveal Vote on Blockchain"}
+                    {revealing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                        Revealing on Blockchain...
+                      </>
+                    ) : (
+                      "Reveal Vote on Blockchain"
+                    )}
                   </button>
                 </>
               )}
             </div>
           </div>
         )}
-      </div>
 
-      {revealProgress.revealed === revealProgress.total &&
-        revealProgress.total > 0 && (
-          <div className="mt-6 pt-4 border-t">
-            <button
-              onClick={handleFinalizeTally}
-              className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 font-semibold"
-            >
-              Finalize Tally and Publish Results
-            </button>
+        {!selectedVote && pendingVotes.length > 0 && (
+          <div className="border-l pl-6 flex items-center justify-center text-gray-400 text-sm">
+            ← Select a vote from the list to decrypt and reveal it
           </div>
         )}
+      </div>
+
+      {allRevealed && (
+        <div className="mt-6 pt-4 border-t">
+          <p className="text-sm text-green-700 font-medium mb-3 text-center">
+            ✅ All {totalVotes} votes revealed. Ready to finalize.
+          </p>
+          <button
+            onClick={handleFinalizeTally}
+            className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 font-semibold"
+          >
+            Finalize Tally and Publish Results
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -637,29 +709,54 @@ const ResultsDisplay: React.FC<{
     );
   }
 
-  const sortedCandidates = [...candidates].sort(
-    (a, b) =>
-      (tally[getChainCandidateId(b)] || 0) -
-      (tally[getChainCandidateId(a)] || 0),
-  );
-  const winner = sortedCandidates[0];
+  const leadersByPost = CANDIDATE_POSTS.map((post) => {
+    const postCandidates = candidates.filter((c) => c.post === post);
+    if (postCandidates.length === 0) return null;
+
+    const sorted = [...postCandidates].sort(
+      (a, b) =>
+        (tally[getChainCandidateId(b)] || 0) -
+        (tally[getChainCandidateId(a)] || 0),
+    );
+
+    const topVotes = tally[getChainCandidateId(sorted[0])] || 0;
+    if (topVotes === 0) return null;
+
+    const leadingCandidates = sorted.filter(
+      (c) => (tally[getChainCandidateId(c)] || 0) === topVotes,
+    );
+
+    return { post, leaders: leadingCandidates, votes: topVotes };
+  }).filter(Boolean);
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
       <h2 className="text-xl font-bold text-gray-800 mb-4">Election Results</h2>
       {totalVotes > 0 && (
         <div className="mb-6 p-4 bg-green-50 border border-green-300 rounded-lg">
-          <div className="text-center">
-            <p className="text-sm text-gray-600">Total Votes Cast</p>
-            <p className="text-3xl font-bold text-green-700">{totalVotes}</p>
+          <div className="text-center mb-4">
+            <p className="text-sm text-gray-600">Total Votes Casted</p>
+            <p className="text-3xl font-bold text-green-700">{totalVotes/4}</p>
           </div>
-          {winner && (
-            <div className="mt-3 pt-3 border-t border-green-200">
-              <p className="text-sm text-gray-600">Current Leader</p>
-              <p className="text-xl font-bold text-green-800">
-                {winner.name} ({winner.post}) -{" "}
-                {tally[getChainCandidateId(winner)] || 0} votes
-              </p>
+          {leadersByPost.length > 0 && (
+            <div className="mt-3 pt-4 border-t border-green-200">
+              <p className="text-sm text-gray-700 font-bold mb-3 text-center uppercase tracking-widest">Current Leaders</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {leadersByPost.map((l) => (
+                  <div key={l!.post} className="bg-white/60 p-3 rounded-xl border border-green-200 text-center shadow-sm">
+                    <p className="text-xs text-green-800 font-bold uppercase tracking-wider mb-1">{l!.post}</p>
+                    {l!.leaders.length === 1 ? (
+                      <p className="text-sm font-bold text-green-900">
+                        {l!.leaders[0].name} <span className="text-green-600 ml-1">({l!.votes} votes)</span>
+                      </p>
+                    ) : (
+                      <p className="text-sm font-bold text-orange-600">
+                        Tie: {l!.leaders.map(c => c.name).join(", ")} <span className="text-orange-400 ml-1">({l!.votes} votes)</span>
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -1037,7 +1134,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     setFundingProgress({ current: 0, total: 0 });
   };
 
-  // CHANGED: registerCandidate now only saves to Django - no on-chain call
   const registerCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!candidateForm.name.trim()) {
@@ -1364,7 +1460,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   };
 
   const refreshAccounts = async () => {
-    // Re-fetch election status fresh from server
     let isActive = false;
     try {
       const response = await fetch(getApiUrl("/voting/election/status/"), {
@@ -1387,7 +1482,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       return;
     }
 
-    // Clear localStorage and regenerate - this resets funded flags too
     localStorage.removeItem("blockchain_accounts");
     await fetchAndGenerateAccounts();
     pushNotice(
@@ -1397,8 +1491,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     );
   };
 
-  // Resets funded=false for all accounts without regenerating mnemonics
-  // Use this after purging the chain so you can re-fund on the fresh chain
   const resetFundedStatus = () => {
     const updated = accounts.map((a) => ({ ...a, funded: false }));
     setAccounts(updated);
@@ -1455,7 +1547,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   }
 
   return (
-    <div className="min-h-screen  px-4 py-6 md:px-8 md:py-10">
+    <div className="min-h-screen px-4 py-6 md:px-8 md:py-10">
       <NotificationStack notices={notices} onDismiss={dismissNotice} />
       <ConfirmDialog
         open={confirmState.open}
@@ -1625,7 +1717,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         {/* Tab Content */}
         {activeTab === "accounts" && (
           <>
-            {/* Candidate Registration - Django only, no on-chain call */}
+            {/* Candidate Registration */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
               <h2 className="text-xl font-bold text-gray-800 mb-4">
                 Candidate Registration

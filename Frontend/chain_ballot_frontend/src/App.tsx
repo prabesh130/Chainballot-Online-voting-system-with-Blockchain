@@ -20,7 +20,8 @@ import Login from "./components/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PageWrapper from "./components/Pagewrapper";
 import Mergedvoting from "./components/Mergedvoting";
-
+import Results from "./components/Results";
+import Blockexplorer from "./components/Blockexplorer";
 import RightDecor from "./assets/image/moon.png";
 import "./index.css";
 
@@ -85,6 +86,23 @@ function AnimatedRoutes({ api }: { api: ApiPromise }) {
           }
         />
 
+        <Route
+          path="/results"
+          element={
+            <PageWrapper>
+              <Results api={api} />
+            </PageWrapper>
+          }
+        />
+        <Route
+          path="/blockexplorer"
+          element={
+            <PageWrapper>
+              <Blockexplorer/>
+            </PageWrapper>
+          }
+        />
+        
         <Route
           path="/login"
           element={
