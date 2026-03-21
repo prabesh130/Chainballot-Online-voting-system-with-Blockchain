@@ -20,7 +20,8 @@ import Login from "./components/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PageWrapper from "./components/Pagewrapper";
 import Mergedvoting from "./components/Mergedvoting";
-
+import Results from "./components/Results";
+import Blockexplorer from "./components/Blockexplorer";
 import RightDecor from "./assets/image/moon.png";
 import "./index.css";
 
@@ -86,6 +87,23 @@ function AnimatedRoutes({ api }: { api: ApiPromise }) {
         />
 
         <Route
+          path="/results"
+          element={
+            <PageWrapper>
+              <Results api={api} />
+            </PageWrapper>
+          }
+        />
+        <Route
+          path="/blockexplorer"
+          element={
+            <PageWrapper>
+              <Blockexplorer/>
+            </PageWrapper>
+          }
+        />
+        
+        <Route
           path="/login"
           element={
             <PageWrapper>
@@ -133,7 +151,7 @@ function App() {
   const [api, setApi] = useState<ApiPromise | null>(null);
 
   useEffect(() => {
-    const provider = new WsProvider("ws://127.0.0.1:9944");
+    const provider = new WsProvider("ws://introductory-lie-forget-mounts.trycloudflare.com/");
     ApiPromise.create({ provider })
       .then((api) => {
         console.log("✅ Connected to blockchain");
