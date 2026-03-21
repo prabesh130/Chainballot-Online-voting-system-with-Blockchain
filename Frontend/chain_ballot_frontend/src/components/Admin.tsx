@@ -54,12 +54,6 @@ type EncryptedVote = {
   vote_hash:string;
 };
 
-type RevealProgress = {
-  total: number;
-  revealed: number;
-  current: number;
-};
-
 const CANDIDATE_POSTS = [
   "President",
   "Vice President",
@@ -256,18 +250,25 @@ const VoteRevealPanel: React.FC<{
 
           if (!voteData || voteData.isEmpty) continue;
 
-          const encVote = voteData.encryptedVote ?? voteData.encrypted_vote;
-          const blindSig = voteData.blindSignature ?? voteData.blind_signature;
-          const voteHash=voteData.voteHash?? voteData.vote_hash;
+          const evRaw = voteData.encryptedVote ?? voteData.encrypted_vote;
+          const bsRaw = voteData.blindSignature ?? voteData.blind_signature;
+          const vhRaw = voteData.voteHash ?? voteData.vote_hash;
+
+          const eHex = evRaw?.toHex
+            ? evRaw.toHex()
+            : u8aToHex(evRaw?.toU8a?.() ?? new Uint8Array());
+
+          if (!eHex || eHex === "0x") continue;
+
           votes.push({
             vote_id: i,
-            encrypted_vote: encHex,
-            blind_signature: blindSig?.toHex
-              ? blindSig.toHex()
-       : u8aToHex(blindSig?.toU8a?.() ?? new Uint8Array()), 
-            vote_hash:voteHash?.toHex? voteHash.toHex():
-            u8aToHex(voteHash?.toU8a?.()?? new Uint8Array),
-
+            encrypted_vote: eHex,
+            blind_signature: bsRaw?.toHex
+              ? bsRaw.toHex()
+              : u8aToHex(bsRaw?.toU8a?.() ?? new Uint8Array()),
+            vote_hash: vhRaw?.toHex
+              ? vhRaw.toHex()
+              : u8aToHex(vhRaw?.toU8a?.() ?? new Uint8Array()),
           });
         } catch (e) {
           console.warn(`Failed to fetch vote slot ${i}:`, e);
@@ -322,8 +323,8 @@ const VoteRevealPanel: React.FC<{
 
       // UPDATED: Send array of candidate IDs
       const innerCall = api.tx.voting.revealVote(
-        selectedVote.vote_id,
-        parseInt(selectedCandidate),
+        revealingVoteId,
+        candidateIdsToCredit,
         VoteHashBytes,
       );
       const tx = api.tx.sudo.sudo(innerCall);

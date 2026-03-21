@@ -36,15 +36,6 @@ type ChainStats = {
 const shortHash = (hash: string, start = 10, end = 6) =>
   `${hash.slice(0, start)}…${hash.slice(-end)}`;
 
-const timeAgo = (timestamp: string): string => {
-  const diff = Math.floor(
-    (Date.now() - new Date(`1970-01-01 ${timestamp}`).getTime()) / 1000,
-  );
-  if (isNaN(diff) || diff < 0) return "just now";
-  if (diff < 60) return `${diff}s ago`;
-  return `${Math.floor(diff / 60)}m ago`;
-};
-
 // ==================== BLOCK DETAIL MODAL ====================
 const BlockDetailModal: React.FC<{
   block: BlockEntry;
@@ -190,7 +181,6 @@ const StatCard: React.FC<{
 
 // ==================== MAIN BLOCK EXPLORER ====================
 const BlockExplorer: React.FC = () => {
-  const [api, setApi] = useState<ApiPromise | null>(null);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [blocks, setBlocks] = useState<BlockEntry[]>([]);
@@ -202,7 +192,6 @@ const BlockExplorer: React.FC = () => {
     latestBlock: 0,
     peers: 0,
   });
-  const [blockTimestamps, setBlockTimestamps] = useState<number[]>([]);
   const apiRef = useRef<ApiPromise | null>(null);
   const unsubRef = useRef<(() => void) | null>(null);
   const MAX_BLOCKS = 50;
@@ -228,7 +217,6 @@ const BlockExplorer: React.FC = () => {
       }));
 
       apiRef.current = instance;
-      setApi(instance);
       setConnected(true);
       startSubscription(instance);
     } catch (err) {
@@ -251,26 +239,9 @@ const BlockExplorer: React.FC = () => {
         const parentHash = header.parentHash.toHex();
         const stateRoot = header.stateRoot.toHex();
         const extrinsicsRoot = header.extrinsicsRoot.toHex();
-        const now = Date.now();
 
         // Update avg block time
-        setBlockTimestamps((prev) => {
-          const updated = [...prev, now].slice(-6);
-          if (updated.length >= 2) {
-            const diffs = updated
-              .slice(1)
-              .map((t, i) => t - updated[i]);
-            const avg = diffs.reduce((a, b) => a + b, 0) / diffs.length;
-            setChainStats((s) => ({
-              ...s,
-              latestBlock: blockNumber,
-              blockTime: Math.round(avg / 100) / 10,
-            }));
-          } else {
-            setChainStats((s) => ({ ...s, latestBlock: blockNumber }));
-          }
-          return updated;
-        });
+        setChainStats((s) => ({ ...s, latestBlock: blockNumber }));
 
         // Fetch full block for extrinsics
         let extrinsics: ExtrinsicEntry[] = [];
