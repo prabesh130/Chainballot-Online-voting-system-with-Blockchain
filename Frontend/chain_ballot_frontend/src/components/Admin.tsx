@@ -51,7 +51,7 @@ type EncryptedVote = {
   vote_id: number;
   encrypted_vote: string;
   blind_signature: string;
-  vote_hash: string;
+  vote_hash:string;
 };
 
 type RevealProgress = {
@@ -66,11 +66,12 @@ const CANDIDATE_POSTS = [
   "Secretary",
   "Vice Secretary",
 ] as const;
+  
 
 const DEFAULT_CANDIDATE_IMAGE = "src/assets/image/candidate.jpg";
 const FEE_AMOUNT = "1000000000000"; // 1 token
 const ALICE_SEED = "//Alice";
-const NODE_URL = "ws://introductory-lie-forget-mounts.trycloudflare.com/";
+const NODE_URL = (import.meta.env.VITE_POLKADOT_URL) || "ws://localhost:9944";
 const getChainCandidateId = (candidate: AdminCandidate) =>
   candidate.candidate_id ?? candidate.id;
 
@@ -257,23 +258,16 @@ const VoteRevealPanel: React.FC<{
 
           const encVote = voteData.encryptedVote ?? voteData.encrypted_vote;
           const blindSig = voteData.blindSignature ?? voteData.blind_signature;
-          const voteHash = voteData.voteHash ?? voteData.vote_hash;
-
-          const encHex = encVote?.toHex
-            ? encVote.toHex()
-            : u8aToHex(encVote?.toU8a?.() ?? new Uint8Array());
-
-          if (!encHex || encHex === "0x") continue;
-
+          const voteHash=voteData.voteHash?? voteData.vote_hash;
           votes.push({
             vote_id: i,
             encrypted_vote: encHex,
             blind_signature: blindSig?.toHex
               ? blindSig.toHex()
-              : u8aToHex(blindSig?.toU8a?.() ?? new Uint8Array()),
-            vote_hash: voteHash?.toHex
-              ? voteHash.toHex()
-              : u8aToHex(voteHash?.toU8a?.() ?? new Uint8Array()),
+       : u8aToHex(blindSig?.toU8a?.() ?? new Uint8Array()), 
+            vote_hash:voteHash?.toHex? voteHash.toHex():
+            u8aToHex(voteHash?.toU8a?.()?? new Uint8Array),
+
           });
         } catch (e) {
           console.warn(`Failed to fetch vote slot ${i}:`, e);
@@ -324,12 +318,12 @@ const VoteRevealPanel: React.FC<{
       const keyring = new Keyring({ type: "sr25519" });
       await cryptoWaitReady();
       const alice = keyring.addFromUri(ALICE_SEED);
-      const VoteHashBytes = Array.from(hexToU8a(selectedVote.vote_hash));
+      const VoteHashBytes=Array.from(hexToU8a(selectedVote.vote_hash));
 
       // UPDATED: Send array of candidate IDs
       const innerCall = api.tx.voting.revealVote(
-        revealingVoteId,
-        candidateIdsToCredit,
+        selectedVote.vote_id,
+        parseInt(selectedCandidate),
         VoteHashBytes,
       );
       const tx = api.tx.sudo.sudo(innerCall);
