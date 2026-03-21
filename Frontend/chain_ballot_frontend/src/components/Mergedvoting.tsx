@@ -528,8 +528,9 @@ const VoteProcessing: React.FC<{
       r: r.toString(16),
       voteHash: voteHashHex,
     });
+    
   }, [votes]);
-
+  console.log(payload)
   const verifyVote = async () => {
     if (!payload) return;
     setIsProcessing(true);
@@ -597,6 +598,7 @@ const VoteProcessing: React.FC<{
       // The old code used stringToU8a which treated it as UTF-8 text — wrong.
       // atob() decodes base64 to the actual binary string, then we get char codes.
       const encryptedBinary = atob(payload.encryptedVote);
+     const voteHashBytes = Array.from(hexToU8a(payload.voteHash));
       const encryptedBytes = Array.from(
         { length: encryptedBinary.length },
         (_, i) => encryptedBinary.charCodeAt(i),
@@ -611,9 +613,10 @@ const VoteProcessing: React.FC<{
 
       await new Promise<void>((resolve, reject) => {
         api.tx.voting
-          .submitVote(encryptedBytes, signatureBytes)
+          .submitVote(encryptedBytes, signatureBytes,voteHashBytes)
           .signAndSend(account, (result: any) => {
             console.log("Tx status:", result.status.toString());
+          
 
             // FIX 2: Decode dispatchError and surface it to the user via onNotify
             if (result.dispatchError) {

@@ -38,10 +38,9 @@ type ElectionStatus = {
   blockchain_phase: "NotStarted" | "Voting" | "Ended" | "TallyComplete" | null;
 };
 
-// CHANGED: removed blockchain_candidate_id - candidates are Django-only now
 type AdminCandidate = {
   id: number;
-  candidate_id: number | null; // explicit admin-assigned ID, shown during tallying
+  candidate_id: number | null;
   name: string;
   post: string;
   photo_url: string;
@@ -52,7 +51,7 @@ type EncryptedVote = {
   vote_id: number;
   encrypted_vote: string;
   blind_signature: string;
-  vote_hash:string;
+  vote_hash: string;
 };
 
 type RevealProgress = {
@@ -71,7 +70,7 @@ const CANDIDATE_POSTS = [
 const DEFAULT_CANDIDATE_IMAGE = "src/assets/image/candidate.jpg";
 const FEE_AMOUNT = "1000000000000"; // 1 token
 const ALICE_SEED = "//Alice";
-const NODE_URL = "wss://johnny-belfast-totally-agency.trycloudflare.com";
+const NODE_URL = "ws://127.0.0.1:9944";
 const getChainCandidateId = (candidate: AdminCandidate) =>
   candidate.candidate_id ?? candidate.id;
 
@@ -184,12 +183,14 @@ const VoteRevealPanel: React.FC<{
   candidates: AdminCandidate[];
   onRevealComplete: () => void;
 }> = ({ api, candidates, onRevealComplete }) => {
-  const [encryptedVotes, setEncryptedVotes] = useState<EncryptedVote[]>([]);
-  const [revealProgress, setRevealProgress] = useState<RevealProgress>({
-    total: 0,
-    revealed: 0,
-    current: 0,
-  });
+  // pendingVotes is the ONLY source of truth for what's left to reveal.
+  // Populated once on mount from chain. After each reveal we remove the entry
+  // locally — we never re-fetch, because the pallet keeps encrypted data in
+  // storage even after reveal so re-fetching returns the same votes.
+  const [pendingVotes, setPendingVotes] = useState<EncryptedVote[]>([]);
+  const [totalVotes, setTotalVotes] = useState(0);
+  const [revealedCount, setRevealedCount] = useState(0);
+  const [fetching, setFetching] = useState(false);
   const [revealing, setRevealing] = useState(false);
   const [selectedVote, setSelectedVote] = useState<EncryptedVote | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<string>("");
@@ -217,71 +218,81 @@ const VoteRevealPanel: React.FC<{
 
   const decryptVoteWithKey = (encryptedVote: string, key: string): string => {
     const encryptedHex = encryptedVote.trim().replace(/^0x/i, "");
-    if (!encryptedHex) {
-      throw new Error("Encrypted vote is empty");
-    }
-
+    if (!encryptedHex) throw new Error("Encrypted vote is empty");
     const privateKeyPem = key.trim();
-    if (!privateKeyPem) {
-      throw new Error("Private key is required");
-    }
-
+    if (!privateKeyPem) throw new Error("Private key is required");
     const rsaPrivateKey = forge.pki.privateKeyFromPem(privateKeyPem);
     const encryptedBytes = forge.util.hexToBytes(encryptedHex);
     const decryptedText = rsaPrivateKey.decrypt(encryptedBytes, "RSA-OAEP");
-    const parsed = JSON.parse(decryptedText);
-
-    return JSON.stringify(parsed);
+    return JSON.stringify(JSON.parse(decryptedText));
   };
 
-  const fetchEncryptedVotes = async () => {
+  // Runs once on mount. Reads all vote slots from chain.
+  const initialFetch = async () => {
     if (!api) return;
+    setFetching(true);
     try {
       let total = 0;
       if (api.query.voting.voteCounter) {
         total = ((await api.query.voting.voteCounter()) as any).toNumber();
       }
       console.log("Total votes on chain:", total);
+      setTotalVotes(total);
+
+      const alreadyRevealed = api.query.voting.revealedCount
+        ? ((await api.query.voting.revealedCount()) as any).toNumber()
+        : 0;
+      console.log("Already revealed on chain:", alreadyRevealed);
+      setRevealedCount(alreadyRevealed);
 
       const votes: EncryptedVote[] = [];
       for (let i = 0; i < total; i++) {
-        const voteOpt = await (api.query.voting.encryptedVotes as any)(i);
-        const voteData = voteOpt?.isSome ? voteOpt.unwrap() : voteOpt;
+        try {
+          const voteOpt = await (api.query.voting.encryptedVotes as any)(i);
+          const voteData = voteOpt?.isSome
+            ? voteOpt.unwrap()
+            : voteOpt?.isNone
+              ? null
+              : voteOpt;
 
-        if (voteData && !voteData.isEmpty) {
+          if (!voteData || voteData.isEmpty) continue;
+
           const encVote = voteData.encryptedVote ?? voteData.encrypted_vote;
           const blindSig = voteData.blindSignature ?? voteData.blind_signature;
-          const voteHash=voteData.voteHash?? voteData.vote_hash;
+          const voteHash = voteData.voteHash ?? voteData.vote_hash;
+
+          const encHex = encVote?.toHex
+            ? encVote.toHex()
+            : u8aToHex(encVote?.toU8a?.() ?? new Uint8Array());
+
+          if (!encHex || encHex === "0x") continue;
+
           votes.push({
             vote_id: i,
-            encrypted_vote: encVote?.toHex
-              ? encVote.toHex()
-              : u8aToHex(encVote?.toU8a?.() ?? new Uint8Array()),
+            encrypted_vote: encHex,
             blind_signature: blindSig?.toHex
               ? blindSig.toHex()
-       : u8aToHex(blindSig?.toU8a?.() ?? new Uint8Array()), 
-            vote_hash:voteHash?.toHex? voteHash.toHex():
-            u8aToHex(voteHash?.toU8a?.()?? new Uint8Array),
-
+              : u8aToHex(blindSig?.toU8a?.() ?? new Uint8Array()),
+            vote_hash: voteHash?.toHex
+              ? voteHash.toHex()
+              : u8aToHex(voteHash?.toU8a?.() ?? new Uint8Array()),
           });
+        } catch (e) {
+          console.warn(`Failed to fetch vote slot ${i}:`, e);
         }
       }
 
-      console.log(`Fetched ${votes.length} votes`);
-      setEncryptedVotes(votes);
-
-      const revealedCount = api.query.voting.revealedCount
-        ? ((await api.query.voting.revealedCount()) as any).toNumber()
-        : 0;
-
-      setRevealProgress({
-        total: votes.length,
-        revealed: revealedCount,
-        current: 0,
-      });
+      console.log(`Fetched ${votes.length} votes from chain`);
+      // If some were already revealed before we opened this panel, drop them.
+      // Assumes votes are revealed in ascending order 0, 1, 2, …
+      const unrevealed = votes.filter((v) => v.vote_id >= alreadyRevealed);
+      console.log(`${unrevealed.length} unrevealed votes remaining`);
+      setPendingVotes(unrevealed);
     } catch (error) {
       console.error("Error fetching encrypted votes:", error);
       pushNotice("error", "Failed to fetch encrypted votes");
+    } finally {
+      setFetching(false);
     }
   };
 
@@ -305,16 +316,16 @@ const VoteRevealPanel: React.FC<{
 
   const handleRevealVote = async () => {
     if (!api || !selectedVote || !selectedCandidate) return;
+    const revealingVoteId = selectedVote.vote_id;
     try {
       setRevealing(true);
       const keyring = new Keyring({ type: "sr25519" });
       await cryptoWaitReady();
       const alice = keyring.addFromUri(ALICE_SEED);
-      const VoteHashBytes=Array.from(hexToU8a(selectedVote.vote_hash));
+      const VoteHashBytes = Array.from(hexToU8a(selectedVote.vote_hash));
 
-      // CHANGED: wrap reveal_vote in sudo since AdminOrigin requires it
       const innerCall = api.tx.voting.revealVote(
-        selectedVote.vote_id,
+        revealingVoteId,
         parseInt(selectedCandidate),
         VoteHashBytes,
       );
@@ -341,16 +352,22 @@ const VoteRevealPanel: React.FC<{
             return;
           }
           if (result.status.isInBlock) {
-            pushNotice("success", `Vote #${selectedVote.vote_id} revealed`);
             resolve();
           }
         });
       });
 
-      await fetchEncryptedVotes();
-      setSelectedVote(null);
+      // Remove the just-revealed vote from the local list and auto-select next.
+      // No re-fetch — the chain keeps encrypted data in storage after reveal.
+      setPendingVotes((prev) => {
+        const next = prev.filter((v) => v.vote_id !== revealingVoteId);
+        setSelectedVote(next.length > 0 ? next[0] : null);
+        return next;
+      });
+      setRevealedCount((prev) => prev + 1);
       setSelectedCandidate("");
       setDecryptedData("");
+      pushNotice("success", `Vote #${revealingVoteId} revealed successfully`);
       onRevealComplete();
     } catch (error: any) {
       pushNotice("error", "Failed to reveal vote", error.message);
@@ -365,8 +382,6 @@ const VoteRevealPanel: React.FC<{
       const keyring = new Keyring({ type: "sr25519" });
       await cryptoWaitReady();
       const alice = keyring.addFromUri(ALICE_SEED);
-
-      // CHANGED: wrap finalize_tally in sudo
       const innerCall = api.tx.voting.finalizeTally();
       const tx = api.tx.sudo.sudo(innerCall);
 
@@ -396,7 +411,6 @@ const VoteRevealPanel: React.FC<{
           }
         });
       });
-
       onRevealComplete();
     } catch (error: any) {
       pushNotice("error", "Failed to finalize tally", error.message);
@@ -404,9 +418,11 @@ const VoteRevealPanel: React.FC<{
   };
 
   useEffect(() => {
-    if (api) fetchEncryptedVotes();
+    if (api) initialFetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api]);
+
+  const allRevealed = totalVotes > 0 && revealedCount >= totalVotes;
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
@@ -415,22 +431,33 @@ const VoteRevealPanel: React.FC<{
         Vote Decryption and Reveal
       </h2>
 
-      {revealProgress.total > 0 && (
+      {fetching && (
+        <div className="flex items-center gap-3 mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent" />
+          <span className="text-blue-700 text-sm font-medium">
+            Loading votes from blockchain...
+          </span>
+        </div>
+      )}
+
+      {totalVotes > 0 && (
         <div className="mb-6">
           <div className="flex justify-between text-sm text-gray-600 mb-2">
             <span>Reveal Progress</span>
             <span>
-              {revealProgress.revealed} / {revealProgress.total} votes
+              {revealedCount} / {totalVotes} votes revealed
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3">
             <div
-              className="bg-green-600 h-3 rounded-full transition-all"
-              style={{
-                width: `${(revealProgress.revealed / revealProgress.total) * 100}%`,
-              }}
+              className="bg-green-600 h-3 rounded-full transition-all duration-500"
+              style={{ width: `${(revealedCount / totalVotes) * 100}%` }}
             />
           </div>
+          <p className="text-xs text-gray-500 mt-1">
+            {pendingVotes.length} vote{pendingVotes.length !== 1 ? "s" : ""}{" "}
+            remaining
+          </p>
         </div>
       )}
 
@@ -460,24 +487,31 @@ const VoteRevealPanel: React.FC<{
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left: pending votes list */}
         <div>
           <h3 className="font-semibold text-gray-700 mb-3">
-            Encrypted Votes ({encryptedVotes.length})
+            Pending Votes ({pendingVotes.length})
           </h3>
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {encryptedVotes.length === 0 && (
+            {!fetching && pendingVotes.length === 0 && (
               <p className="text-sm text-gray-500 text-center py-8">
-                No votes found on chain
+                {totalVotes === 0
+                  ? "No votes found on chain"
+                  : "All votes have been revealed 🎉"}
               </p>
             )}
-            {encryptedVotes.map((vote) => (
+            {pendingVotes.map((vote) => (
               <div
                 key={vote.vote_id}
-                onClick={() => setSelectedVote(vote)}
+                onClick={() => {
+                  setSelectedVote(vote);
+                  setDecryptedData("");
+                  setSelectedCandidate("");
+                }}
                 className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                   selectedVote?.vote_id === vote.vote_id
                     ? "bg-blue-50 border-blue-500"
-                    : "hover:bg-gray-50"
+                    : "hover:bg-gray-50 border-gray-200"
                 }`}
               >
                 <div className="flex justify-between items-center">
@@ -491,6 +525,7 @@ const VoteRevealPanel: React.FC<{
           </div>
         </div>
 
+        {/* Right: decrypt + reveal panel */}
         {selectedVote && (
           <div className="border-l pl-6">
             <h3 className="font-semibold text-gray-700 mb-3">
@@ -545,28 +580,43 @@ const VoteRevealPanel: React.FC<{
                   <button
                     onClick={handleRevealVote}
                     disabled={!selectedCandidate || revealing}
-                    className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400"
+                    className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center justify-center gap-2"
                   >
-                    {revealing ? "Revealing..." : "Reveal Vote on Blockchain"}
+                    {revealing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                        Revealing on Blockchain...
+                      </>
+                    ) : (
+                      "Reveal Vote on Blockchain"
+                    )}
                   </button>
                 </>
               )}
             </div>
           </div>
         )}
-      </div>
 
-      {revealProgress.revealed === revealProgress.total &&
-        revealProgress.total > 0 && (
-          <div className="mt-6 pt-4 border-t">
-            <button
-              onClick={handleFinalizeTally}
-              className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 font-semibold"
-            >
-              Finalize Tally and Publish Results
-            </button>
+        {!selectedVote && pendingVotes.length > 0 && (
+          <div className="border-l pl-6 flex items-center justify-center text-gray-400 text-sm">
+            ← Select a vote from the list to decrypt and reveal it
           </div>
         )}
+      </div>
+
+      {allRevealed && (
+        <div className="mt-6 pt-4 border-t">
+          <p className="text-sm text-green-700 font-medium mb-3 text-center">
+            ✅ All {totalVotes} votes revealed. Ready to finalize.
+          </p>
+          <button
+            onClick={handleFinalizeTally}
+            className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 font-semibold"
+          >
+            Finalize Tally and Publish Results
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -1036,7 +1086,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     setFundingProgress({ current: 0, total: 0 });
   };
 
-  // CHANGED: registerCandidate now only saves to Django - no on-chain call
   const registerCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!candidateForm.name.trim()) {
@@ -1363,7 +1412,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   };
 
   const refreshAccounts = async () => {
-    // Re-fetch election status fresh from server
     let isActive = false;
     try {
       const response = await fetch(getApiUrl("/voting/election/status/"), {
@@ -1386,7 +1434,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
       return;
     }
 
-    // Clear localStorage and regenerate - this resets funded flags too
     localStorage.removeItem("blockchain_accounts");
     await fetchAndGenerateAccounts();
     pushNotice(
@@ -1396,8 +1443,6 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
     );
   };
 
-  // Resets funded=false for all accounts without regenerating mnemonics
-  // Use this after purging the chain so you can re-fund on the fresh chain
   const resetFundedStatus = () => {
     const updated = accounts.map((a) => ({ ...a, funded: false }));
     setAccounts(updated);
@@ -1454,7 +1499,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   }
 
   return (
-    <div className="min-h-screen  px-4 py-6 md:px-8 md:py-10">
+    <div className="min-h-screen px-4 py-6 md:px-8 md:py-10">
       <NotificationStack notices={notices} onDismiss={dismissNotice} />
       <ConfirmDialog
         open={confirmState.open}
@@ -1624,7 +1669,7 @@ const AdminDashboard: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         {/* Tab Content */}
         {activeTab === "accounts" && (
           <>
-            {/* Candidate Registration - Django only, no on-chain call */}
+            {/* Candidate Registration */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
               <h2 className="text-xl font-bold text-gray-800 mb-4">
                 Candidate Registration
