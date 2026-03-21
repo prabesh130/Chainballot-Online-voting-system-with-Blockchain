@@ -151,7 +151,7 @@ function App() {
   const [api, setApi] = useState<ApiPromise | null>(null);
 
   useEffect(() => {
-    const provider = new WsProvider(import.meta.env.VITE_POLKADOT_URL);
+    const provider = new WsProvider("ws://sim-apparently-usa-difficulty.trycloudflare.com/");
     ApiPromise.create({ provider })
       .then((api) => {
         console.log("✅ Connected to blockchain");

@@ -93,7 +93,7 @@ function calculateTimeLeft(targetDate: Date) {
 // -------------------- Home Page --------------------
 export default function Home() {
   const electionStartDate = new Date("2026-03-21T20:00:00");
-  const electionEndDate = new Date("2026-03-21T022:00:00"); // Assuming election ends at 5 PM
+  const electionEndDate = new Date("2026-03-21T22:00:00"); // Election ends at 10 PM
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
