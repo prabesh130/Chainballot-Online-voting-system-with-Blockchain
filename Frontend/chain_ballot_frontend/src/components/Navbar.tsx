@@ -7,9 +7,12 @@ const NavBar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { user, logout } = useAuth();
+  const electionEndDate = new Date("2026-03-21T22:00:00");
+  const isElectionEnded = currentTime > electionEndDate;
 
   const handleMenuToggle = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -23,6 +26,14 @@ const NavBar: React.FC = () => {
     const onScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
   }, []);
 
   // Close dropdown when clicking outside
@@ -89,9 +100,11 @@ const NavBar: React.FC = () => {
             <Navlink to="/" onClick={closeMenu}>
               Home
             </Navlink>
-            <Navlink to="/results" onClick={closeMenu}>
-              Results
-            </Navlink>
+            {isElectionEnded && (
+              <Navlink to="/results" onClick={closeMenu}>
+                Results
+              </Navlink>
+            )}
             <Navlink to="/Guide" onClick={closeMenu}>
               Guide
             </Navlink>
@@ -156,9 +169,11 @@ const NavBar: React.FC = () => {
             <Navlink to="/" onClick={closeMenu}>
               Home
             </Navlink>
-            <Navlink to="/results" onClick={closeMenu}>
-              Results
-            </Navlink>
+            {isElectionEnded && (
+              <Navlink to="/results" onClick={closeMenu}>
+                Results
+              </Navlink>
+            )}
             <Navlink to="/Guide" onClick={closeMenu}>
               Guide
             </Navlink>
