@@ -239,7 +239,7 @@ pub mod pallet {
         Error::<T>::VoteHashMismatch
     );
 
-    EncryptedVotes::<T>::remove(vote_id);
+    // EncryptedVotes::<T>::remove(vote_id);
     Tally::<T>::mutate(candidate_id, |count| *count = count.saturating_add(1));
     RevealedCount::<T>::mutate(|c| *c = c.saturating_add(1));
 

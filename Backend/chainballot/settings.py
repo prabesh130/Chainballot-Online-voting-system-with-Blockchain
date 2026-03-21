@@ -7,12 +7,15 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY')
-DEBUG = False
-ALLOWED_HOSTS = ['https://chainballot-backend.vercel.app',
-                 'chainballot-backend.vercel.app',
-                 'chainballot-backend-fbix0q6qy-prabesh-babu-adhikaris-projects.vercel.app',
-                 'https://chainballot-backend-fbix0q6qy-prabesh-babu-adhikaris-projects.vercel.app',
-                 ]
+DEBUG = os.getenv('DEBUG', 'True').lower() in ('1', 'true', 'yes')
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv(
+        'ALLOWED_HOSTS',
+        '127.0.0.1,localhost,chainballot-backend.vercel.app,chainballot-backend-fbix0q6qy-prabesh-babu-adhikaris-projects.vercel.app',
+    ).split(',')
+    if host.strip()
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
