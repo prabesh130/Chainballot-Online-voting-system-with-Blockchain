@@ -101,7 +101,7 @@ def verify_email(request, token):
         voter.is_verified = True
         voter.save()
 
-    return redirect("http://localhost:5173/emailVerified")
+    return redirect("https://chainballot-online-voting.vercel.app/emailVerified")
 
 def dev_verify_voter(request, roll):
     if not settings.DEBUG:
