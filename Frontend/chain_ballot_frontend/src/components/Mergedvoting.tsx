@@ -997,7 +997,7 @@ const VoteProcessing: React.FC<{
   );
 };
 
-const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
+const MergedVotingFlow: React.FC<{ api: ApiPromise | null }> = ({ api }) => {
   const [account, setAccount] = useState<any>(null);
   const [votes, setVotes] = useState<VotesByPosition | null>(null);
   const [electionStatus, setElectionStatus] = useState<ElectionStatus | null>(
@@ -1067,6 +1067,24 @@ const MergedVotingFlow: React.FC<{ api: ApiPromise }> = ({ api }) => {
 
     loadVotingConfig();
   }, []);
+
+  if (!api) {
+    return (
+      <>
+        <NotificationStack notices={notices} onDismiss={dismissNotice} />
+        <div className="min-h-screen px-4 py-10">
+          <div className="mx-auto w-full max-w-2xl rounded-2xl border border-blue-200 bg-white p-8 text-center shadow-xl">
+            <h2 className="text-3xl font-bold text-blue-900">
+              Voting tools are loading
+            </h2>
+            <p className="mt-3 text-slate-600">
+              Please wait while the voting interface gets ready.
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   if (loading) {
     return (

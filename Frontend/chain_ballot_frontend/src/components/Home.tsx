@@ -1,8 +1,6 @@
 import { Card, CardImage, CardContent } from "./Card";
 import { useEffect, useState } from "react";
 import LeftDecor from "../assets/image/vecto.png";
-import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
 
 // -------------------- Countdown Hook --------------------
 interface NewsItem {
@@ -90,14 +88,36 @@ function calculateTimeLeft(targetDate: Date) {
   return { months, days, hours, minutes, seconds };
 }
 
+function getLoopingCountdownTarget(
+  now: Date,
+  startDate: Date,
+  endDate: Date,
+) {
+  const cycleMs = Math.max(endDate.getTime() - startDate.getTime(), 1000);
+
+  if (now.getTime() <= startDate.getTime()) {
+    return startDate;
+  }
+
+  const elapsedMs = now.getTime() - startDate.getTime();
+  const cyclesCompleted = Math.floor(elapsedMs / cycleMs);
+  let nextTarget = new Date(startDate.getTime() + (cyclesCompleted + 1) * cycleMs);
+
+  while (nextTarget.getTime() <= now.getTime()) {
+    nextTarget = new Date(nextTarget.getTime() + cycleMs);
+  }
+
+  return nextTarget;
+}
+
 // -------------------- Home Page --------------------
 export default function Home() {
   const electionStartDate = new Date("2026-03-29T10:30:00");
   const electionEndDate = new Date("2026-03-30T22:00:00"); // Election ends at 10 PM
-  const navigate = useNavigate();
-  const { user, loading } = useAuth();
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [countdownTarget, setCountdownTarget] = useState(() =>
+    getLoopingCountdownTarget(new Date(), electionStartDate, electionEndDate),
+  );
 
   useEffect(() => {
     const fetchAndSetNews = async () => {
@@ -113,44 +133,20 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // Single interval to update current time
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentTime(new Date());
+      const now = new Date();
+      setCountdownTarget(
+        getLoopingCountdownTarget(now, electionStartDate, electionEndDate),
+      );
     }, 1000);
 
     return () => clearInterval(timer);
   }, []);
 
-  // Calculate countdown based on current time
-  const timeLeft = calculateTimeLeft(electionStartDate);
+  // Calculate countdown based on the next active cycle
+  const timeLeft = calculateTimeLeft(countdownTarget);
   const { months, days, hours, minutes, seconds } = timeLeft;
-
-  // Check if election is currently ongoing
-  const isElectionOngoing =
-    currentTime >= electionStartDate && currentTime <= electionEndDate;
-
-  // Check if election has ended
-  const isElectionEnded = currentTime > electionEndDate;
-
-  // Handle voting portal redirect
-  const handleVotingPortal = () => {
-    if (loading) return; // still loading auth state
-    if (!user) {
-      alert("Please log in to access the voting portal.");
-      return;
-    }
-
-    if (!user.is_verified) {
-      alert("Your account is not verified. You are not eligible to vote.");
-      return;
-    }
-    if (user.is_voted) {
-      alert("You have already voted.");
-      return;
-    }
-    navigate("/merged-voting");
-  };
 
   return (
     <div className="min-h-screen relative overflow-visible">
@@ -170,149 +166,97 @@ export default function Home() {
         />
 
         <section className="text-center space-y-6">
-          {/* Show countdown only if election hasn't started */}
-          {!isElectionOngoing && !isElectionEnded && (
-            <>
-              <h1 className="md:text-6xl mb-28 text-4xl z-20 font-bold tracking-tight">
-                Time For Upcoming National Election
-              </h1>
+          <h1 className="md:text-6xl mb-10 text-4xl z-20 font-bold tracking-tight">
+            Time For Upcoming National Election
+          </h1>
 
-              <div className="mt-8">
-                {/* Mobile (Months, Days, Hours) */}
-                <div className="grid grid-cols-3 gap-4 sm:hidden max-w-md mx-auto">
-                  {[
-                    { label: "Months", value: months },
-                    { label: "Days", value: days },
-                    { label: "Hours", value: hours },
-                  ].map((item) => (
-                    <Card key={item.label} className="text-center shadow-md">
-                      <CardContent className="py-6">
-                        <div className="text-5xl font-semibold tabular-nums">
-                          {item.value.toString().padStart(2, "0")}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {item.label}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+          <p className="text-sm md:text-base text-gray-600 max-w-2xl mx-auto">
+            The countdown refreshes automatically and restarts when it reaches zero.
+          </p>
 
-                {/* Desktop (Months, Days, Hours, Minutes, Seconds) */}
-                <div className="hidden sm:flex justify-center gap-6">
-                  {[
-                    { label: "Months", value: months },
-                    { label: "Days", value: days },
-                    { label: "Hours", value: hours },
-                    { label: "Minutes", value: minutes },
-                    { label: "Seconds", value: seconds },
-                  ].map((item) => (
-                    <Card
-                      key={item.label}
-                      className="w-60 text-center shadow-lg"
-                    >
-                      <CardContent className="py-10">
-                        <div className="text-6xl font-medium tabular-nums">
-                          {item.value.toString().padStart(2, "0")}
-                        </div>
-                        <div className="text-lg text-gray-500 mt-1">
-                          {item.label}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Show voting portal message during election */}
-          {isElectionOngoing && (
-            <div className="space-y-8 py-16">
-              <h1 className="md:text-6xl text-4xl font-bold tracking-tight text-blue-600">
-                Election is Now Live!
-              </h1>
-              <p className="text-xl text-gray-700 max-w-2xl mx-auto">
-                The national election has started. Cast your vote now and make
-                your voice heard.
-              </p>
-              <button
-                onClick={handleVotingPortal}
-                disabled={!user || loading}
-                className={`font-semibold text-lg px-12 py-4 rounded-lg shadow-lg transition-all
-    ${
-      loading || !user
-        ? "bg-gray-400 cursor-not-allowed"
-        : "bg-blue-500 hover:bg-blue-700 text-white hover:scale-105"
-    }`}
-              >
-                {!user
-                  ? "You're not eligible to vote"
-                  : "Proceed to Voting Portal"}
-              </button>
-
-              <p className="text-sm text-gray-500 mt-4">
-                Election ends at {electionEndDate.toLocaleTimeString()}
-              </p>
+          <div className="mt-8">
+            {/* Mobile (Months, Days, Hours) */}
+            <div className="grid grid-cols-3 gap-4 sm:hidden max-w-md mx-auto">
+              {[
+                { label: "Months", value: months },
+                { label: "Days", value: days },
+                { label: "Hours", value: hours },
+              ].map((item) => (
+                <Card key={item.label} className="text-center shadow-md">
+                  <CardContent className="py-6">
+                    <div className="text-5xl font-semibold tabular-nums">
+                      {item.value.toString().padStart(2, "0")}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {item.label}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          )}
 
-          {/* Show message after election ends */}
-          {isElectionEnded && (
-            <div className="space-y-8 py-16">
-              <h1 className="md:text-6xl text-4xl font-bold tracking-tight text-gray-700">
-                Election Has Concluded
-              </h1>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                Thank you for participating in the democratic process. Results
-                will be announced soon.
-              </p>
+            {/* Desktop (Months, Days, Hours, Minutes, Seconds) */}
+            <div className="hidden sm:flex justify-center gap-6">
+              {[
+                { label: "Months", value: months },
+                { label: "Days", value: days },
+                { label: "Hours", value: hours },
+                { label: "Minutes", value: minutes },
+                { label: "Seconds", value: seconds },
+              ].map((item) => (
+                <Card key={item.label} className="w-60 text-center shadow-lg">
+                  <CardContent className="py-10">
+                    <div className="text-6xl font-medium tabular-nums">
+                      {item.value.toString().padStart(2, "0")}
+                    </div>
+                    <div className="text-lg text-gray-500 mt-1">
+                      {item.label}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          )}
+          </div>
         </section>
       </div>
 
-      {/* News Section - Only show before and after election, not during */}
-      {!isElectionOngoing && (
-        <section className="space-y-6 pt-10 mt-10 bg-white">
-          <h2 className="text-4xl text-center font-semibold">
-            Latest Election Updates
-          </h2>
-          <div className="w-1/2 mx-auto border-t-2 border-red-500 my-4 mb-8"></div>
-          <div className="grid md:grid-cols-2 mx-auto gap-6 max-w-sm md:max-w-5xl">
-            {news.length > 0 ? (
-              news.map((item, index) => (
-                <a
-                  key={item.article_id ?? index}
-                  href={item.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block"
-                >
-                  <Card className="hover:shadow-xl cursor-pointer transition mt-10">
-                    {item.image_url ? (
-                      <CardImage src={item.image_url} alt={item.title} />
-                    ) : (
-                      <CardImage src="/placeholder.png" alt="No image" />
-                    )}
+      {/* News Section */}
+      <section className="space-y-6 pt-10 mt-10 bg-white">
+        <h2 className="text-4xl text-center font-semibold">
+          Latest Election Updates
+        </h2>
+        <div className="w-1/2 mx-auto border-t-2 border-red-500 my-4 mb-8"></div>
+        <div className="grid md:grid-cols-2 mx-auto gap-6 max-w-sm md:max-w-5xl">
+          {news.length > 0 ? (
+            news.map((item, index) => (
+              <a
+                key={item.article_id ?? index}
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                <Card className="hover:shadow-xl cursor-pointer transition mt-10">
+                  {item.image_url ? (
+                    <CardImage src={item.image_url} alt={item.title} />
+                  ) : (
+                    <CardImage src="/placeholder.png" alt="No image" />
+                  )}
 
-                    <CardContent className="p-6 space-y-3">
-                      <h3 className="font-medium text-lg">{item.title}</h3>
-                      <p className="text-sm text-gray-600">
-                        {item.description}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </a>
-              ))
-            ) : (
-              <div className="col-span-full text-center text-gray-500 py-12">
-                No election news available at the moment.
-              </div>
-            )}
-          </div>
-        </section>
-      )}
+                  <CardContent className="p-6 space-y-3">
+                    <h3 className="font-medium text-lg">{item.title}</h3>
+                    <p className="text-sm text-gray-600">{item.description}</p>
+                  </CardContent>
+                </Card>
+              </a>
+            ))
+          ) : (
+            <div className="col-span-full text-center text-gray-500 py-12">
+              No election news available at the moment.
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

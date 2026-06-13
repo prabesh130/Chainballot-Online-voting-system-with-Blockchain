@@ -41,7 +41,7 @@ function ScrollToTop() {
 /* ===============================
    Animated Routes
 ================================ */
-function AnimatedRoutes({ api }: { api: ApiPromise }) {
+function AnimatedRoutes({ api }: { api: ApiPromise | null }) {
   const location = useLocation();
 
   return (
@@ -147,24 +147,28 @@ function AnimatedRoutes({ api }: { api: ApiPromise }) {
    App Root
 ================================ */
 function App() {
-  // ✅ Only ApiPromise, no null
   const [api, setApi] = useState<ApiPromise | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const provider = new WsProvider(import.meta.env.VITE_POLKADOT_URL);
     ApiPromise.create({ provider })
       .then((api) => {
+        if (cancelled) {
+          api.disconnect().catch(() => undefined);
+          return;
+        }
         console.log("✅ Connected to blockchain");
         setApi(api);
       })
       .catch((err) => {
         console.error("❌ Failed to connect to blockchain", err);
       });
-  }, []);
 
-  if (!api) {
-    return <p className="text-center mt-20">Connecting to blockchain…</p>;
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <BrowserRouter basename="/">
