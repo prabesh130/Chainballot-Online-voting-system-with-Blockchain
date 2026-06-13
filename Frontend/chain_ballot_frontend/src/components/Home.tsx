@@ -88,11 +88,7 @@ function calculateTimeLeft(targetDate: Date) {
   return { months, days, hours, minutes, seconds };
 }
 
-function getLoopingCountdownTarget(
-  now: Date,
-  startDate: Date,
-  endDate: Date,
-) {
+function getLoopingCountdownTarget(now: Date, startDate: Date, endDate: Date) {
   const cycleMs = Math.max(endDate.getTime() - startDate.getTime(), 1000);
 
   if (now.getTime() <= startDate.getTime()) {
@@ -101,7 +97,9 @@ function getLoopingCountdownTarget(
 
   const elapsedMs = now.getTime() - startDate.getTime();
   const cyclesCompleted = Math.floor(elapsedMs / cycleMs);
-  let nextTarget = new Date(startDate.getTime() + (cyclesCompleted + 1) * cycleMs);
+  let nextTarget = new Date(
+    startDate.getTime() + (cyclesCompleted + 1) * cycleMs,
+  );
 
   while (nextTarget.getTime() <= now.getTime()) {
     nextTarget = new Date(nextTarget.getTime() + cycleMs);
@@ -169,10 +167,6 @@ export default function Home() {
           <h1 className="md:text-6xl mb-10 text-4xl z-20 font-bold tracking-tight">
             Time For Upcoming National Election
           </h1>
-
-          <p className="text-sm md:text-base text-gray-600 max-w-2xl mx-auto">
-            The countdown refreshes automatically and restarts when it reaches zero.
-          </p>
 
           <div className="mt-8">
             {/* Mobile (Months, Days, Hours) */}

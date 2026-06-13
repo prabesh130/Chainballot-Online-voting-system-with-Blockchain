@@ -1,11 +1,6 @@
 import { useEffect, useState } from "react";
 import "./App.css";
-import {
-  BrowserRouter,
-  Route,
-  Routes,
-  useLocation,
-} from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 
 import Admin from "./components/Admin";
@@ -98,11 +93,11 @@ function AnimatedRoutes({ api }: { api: ApiPromise | null }) {
           path="/blockexplorer"
           element={
             <PageWrapper>
-              <Blockexplorer/>
+              <Blockexplorer />
             </PageWrapper>
           }
         />
-        
+
         <Route
           path="/login"
           element={
